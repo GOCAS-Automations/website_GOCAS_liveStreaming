@@ -1,5 +1,6 @@
 import express from 'express';
-import { PORT, HOST, HLS_DIR, ALLOWED_ORIGINS, ALLOW_VERCEL_PREVIEWS } from './config.js';
+import http from 'node:http';
+import { PORT, HLS_DIR, ALLOWED_ORIGINS, ALLOW_VERCEL_PREVIEWS } from './config.js';
 import { start, stop, getStatus, stopAll, ffmpegBinary } from './ffmpeg.js';
 
 const app = express();
@@ -74,17 +75,36 @@ app.use(
   express.static(HLS_DIR),
 );
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`\n  GOCAS Live · puente en http://localhost:${PORT} (escuchando en ${HOST})`);
-  console.log(`  FFmpeg: ${ffmpegBinary}`);
-  console.log(`  Deja esta ventana abierta mientras transmites.\n`);
-});
+// Por defecto escucha en AMBOS loopbacks (IPv4 127.0.0.1 e IPv6 ::1) para que el
+// navegador conecte con "localhost" o "127.0.0.1" sin importar cómo resuelva Windows.
+// Sigue siendo solo loopback: nadie en la red puede controlarlo. Para un dispositivo
+// dedicado (futuro) usa HOST=0.0.0.0 + token.
+const hosts = process.env.HOST ? [process.env.HOST] : ['127.0.0.1', '::1'];
+const servers = [];
+for (const host of hosts) {
+  const s = http.createServer(app);
+  s.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`  El puerto ${PORT} ya está en uso. ¿El puente ya está corriendo?`);
+      process.exit(1);
+    } else if (e.code !== 'EADDRNOTAVAIL') {
+      console.warn(`  Aviso al escuchar en ${host}: ${e.message}`);
+    }
+  });
+  s.listen(PORT, host);
+  servers.push(s);
+}
+
+console.log(`\n  GOCAS Live · puente en http://localhost:${PORT}`);
+console.log(`  Escuchando en: ${hosts.join(', ')} (solo esta máquina)`);
+console.log(`  FFmpeg: ${ffmpegBinary}`);
+console.log(`  Deja esta ventana abierta mientras transmites.\n`);
 
 function shutdown() {
   console.log('\n  Cerrando · deteniendo transmisiones...');
   stopAll();
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 1500);
+  for (const s of servers) s.close();
+  setTimeout(() => process.exit(0), 1200);
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

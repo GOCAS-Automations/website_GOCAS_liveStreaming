@@ -1,8 +1,10 @@
 // Cliente del "puente" local (Node+FFmpeg) que corre en la PC del usuario, en la
 // misma red de la cámara RTSP. El navegador habla con él en http://localhost:4000.
 // (localhost está exento de bloqueo por contenido mixto; el puente responde CORS + PNA.)
+// Usamos 127.0.0.1 (IPv4) en vez de "localhost": en Windows "localhost" suele resolver
+// a ::1 (IPv6) primero y, si el puente no escucha en IPv6, la conexión falla.
 export const BRIDGE_URL =
-  process.env.NEXT_PUBLIC_BRIDGE_URL?.replace(/\/$/, '') || 'http://localhost:4000';
+  process.env.NEXT_PUBLIC_BRIDGE_URL?.replace(/\/$/, '') || 'http://127.0.0.1:4000';
 
 export interface BridgeStatus {
   status: 'idle' | 'starting' | 'preview' | 'live' | 'restarting' | 'error';

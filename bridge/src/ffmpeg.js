@@ -1,8 +1,14 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import ffmpegPath from 'ffmpeg-static';
+import ffmpegStatic from 'ffmpeg-static';
 import { TMP_DIR, HLS_DIR, YOUTUBE_RTMP, MAX_RESTARTS } from './config.js';
+
+// Cuando corre empaquetado (.exe con pkg), busca ffmpeg.exe junto al ejecutable;
+// en desarrollo usa el binario de ffmpeg-static.
+const ffmpegPath = process.pkg
+  ? path.join(path.dirname(process.execPath), 'ffmpeg.exe')
+  : ffmpegStatic;
 
 const sessions = new Map(); // id -> sesion
 const LOG_LINES = 120;

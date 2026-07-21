@@ -1,12 +1,22 @@
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// import.meta.url no existe cuando el código va empaquetado (bundle CJS); en ese
+// caso caemos a cwd. Da igual: al empaquetar usamos os.tmpdir() para tmp/hls.
+let dir;
+try {
+  dir = path.dirname(fileURLToPath(import.meta.url));
+} catch {
+  dir = process.cwd();
+}
 
-export const ROOT = path.resolve(__dirname, '..');
-export const TMP_DIR = path.join(ROOT, 'tmp');
-export const HLS_DIR = path.join(ROOT, 'hls');
+export const ROOT = path.resolve(dir, '..');
+// Empaquetado (.exe): el snapshot es de solo lectura → usamos una ruta escribible.
+const BASE = process.pkg ? path.join(os.tmpdir(), 'gocas-live') : ROOT;
+export const TMP_DIR = path.join(BASE, 'tmp');
+export const HLS_DIR = path.join(BASE, 'hls');
 
 export const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
