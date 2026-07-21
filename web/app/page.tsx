@@ -7,30 +7,30 @@ export const dynamic = 'force-dynamic';
 const STEPS = [
   {
     n: '01',
-    title: 'Crea tu cuenta y tu marca',
+    title: 'Crea tu cuenta y sube tu marca',
     body: 'Regístrate y sube tu logo. Hasta 4 marcas de agua listas para elegir en cada transmisión.',
   },
   {
     n: '02',
-    title: 'Configura la transmisión',
-    body: 'Dale nombre y elige tu marca de agua, su posición y tamaño (hasta cubrir todo el video). Máximo 2 transmisiones por cuenta.',
+    title: 'Instala y vincula tu dispositivo',
+    body: 'Instala el agente GOCAS en la PC que está en la red de tu cámara y pégale el código que genera el sitio. Se conecta solo, sin configurar nada más.',
   },
   {
     n: '03',
-    title: 'Abre el puente en sitio',
-    body: 'En la PC que está en la red de tu cámara, abre el puente GOCAS. Pega la URL RTSP de la cámara y la clave de retransmisión de tu YouTube Live.',
+    title: 'Configura la transmisión',
+    body: 'Ponle nombre y elige tu marca de agua, posición y tamaño. Al transmitir pegas la URL RTSP de la cámara y la clave de tu YouTube Live.',
   },
   {
     n: '04',
-    title: 'Transmite con tu marca',
-    body: 'Pulsa Transmitir: GOCAS lee tu cámara, incrusta tu marca de agua y envía la señal a YouTube en vivo. La entrega a cientos la hace YouTube.',
+    title: 'Transmite desde el sitio',
+    body: 'Un clic y tu cámara sale en vivo en YouTube con tu marca incrustada. Todo se controla desde aquí; el agente hace el trabajo.',
   },
 ];
 
 const FEATURES = [
+  { t: 'Todo desde el sitio', d: 'Controlas tus transmisiones desde el navegador, sin abrir nada más.' },
   { t: 'Marca de agua incrustada', d: 'Tu logo va quemado en el video: se ve en YouTube y no se puede quitar.' },
-  { t: 'Desde tu cámara RTSP', d: 'El puente en sitio lee la cámara y la lleva a tu YouTube Live.' },
-  { t: 'Escala tranquila', d: 'La entrega la hace YouTube: cientos de espectadores sin sudar.' },
+  { t: 'Instala una vez', d: 'El agente en sitio se conecta solo y funciona en cualquier red.' },
 ];
 
 export default async function Home() {

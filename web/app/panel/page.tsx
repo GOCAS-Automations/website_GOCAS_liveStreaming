@@ -4,10 +4,18 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { listLives, listWatermarks, MAX_LIVES, type Live, type Watermark } from '@/lib/data';
-import { bridge, BRIDGE_URL } from '@/lib/bridge';
+import {
+  listLives,
+  listWatermarks,
+  listAgents,
+  MAX_LIVES,
+  type Live,
+  type Watermark,
+  type Agent,
+} from '@/lib/data';
 import { Wordmark } from '@/components/ui';
 import WatermarkManager from '@/components/panel/WatermarkManager';
+import AgentManager from '@/components/panel/AgentManager';
 import LiveForm from '@/components/panel/LiveForm';
 import LiveCard from '@/components/panel/LiveCard';
 
@@ -16,16 +24,17 @@ export default function PanelPage() {
   const [email, setEmail] = useState<string | null>(null);
   const [lives, setLives] = useState<Live[] | null>(null);
   const [watermarks, setWatermarks] = useState<Watermark[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Live | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [bridgeOk, setBridgeOk] = useState<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [lv, wm] = await Promise.all([listLives(), listWatermarks()]);
+      const [lv, wm, ag] = await Promise.all([listLives(), listWatermarks(), listAgents()]);
       setLives(lv);
       setWatermarks(wm);
+      setAgents(ag);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando datos.');
@@ -37,23 +46,9 @@ export default function PanelPage() {
     const sb = createClient();
     sb.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
     refresh();
+    const t = setInterval(refresh, 4000);
+    return () => clearInterval(t);
   }, [refresh]);
-
-  // Estado del puente local (¿está corriendo en la PC del usuario?)
-  useEffect(() => {
-    let active = true;
-    const check = () =>
-      bridge
-        .health()
-        .then(() => active && setBridgeOk(true))
-        .catch(() => active && setBridgeOk(false));
-    check();
-    const t = setInterval(check, 5000);
-    return () => {
-      active = false;
-      clearInterval(t);
-    };
-  }, []);
 
   async function logout() {
     const sb = createClient();
@@ -86,13 +81,6 @@ export default function PanelPage() {
         <div className="container row between" style={{ height: 66 }}>
           <Wordmark sub="panel" />
           <div className="row" style={{ gap: 10 }}>
-            <span className="badge" title={`Puente local · ${BRIDGE_URL}`}>
-              <span
-                className="dot"
-                style={{ background: bridgeOk ? '#3d4a2a' : bridgeOk === false ? '#d97a3c' : '#b8ac93' }}
-              />
-              {bridgeOk === null ? 'Puente…' : bridgeOk ? 'Puente conectado' : 'Puente apagado'}
-            </span>
             {email ? (
               <span className="mono" style={{ fontSize: 12.5, color: 'var(--muted)' }}>
                 {email}
@@ -115,19 +103,7 @@ export default function PanelPage() {
           </div>
         ) : null}
 
-        {bridgeOk === false ? (
-          <div className="card" style={{ borderColor: 'var(--amber)', marginBottom: 24 }}>
-            <p style={{ fontWeight: 600, marginBottom: 4 }}>El puente no está corriendo</p>
-            <p className="muted" style={{ fontSize: 14 }}>
-              Puedes crear y editar transmisiones sin él. Para <strong>transmitir</strong> necesitas
-              abrir el puente GOCAS en la PC que está en la red de la cámara: en la carpeta{' '}
-              <span className="mono">bridge/</span> ejecuta <span className="mono">npm start</span>.
-              En cuanto esté arriba, este aviso desaparece.
-            </p>
-          </div>
-        ) : null}
-
-        {/* Formulario */}
+        {/* Formulario de transmisión */}
         {formOpen ? (
           <div style={{ marginBottom: 34 }}>
             <LiveForm
@@ -141,6 +117,23 @@ export default function PanelPage() {
             />
           </div>
         ) : null}
+
+        {/* Dispositivos (agentes) */}
+        <section style={{ marginBottom: 48 }}>
+          <div style={{ marginBottom: 16 }}>
+            <p className="kicker" style={{ marginBottom: 8 }}>
+              Tu equipo en sitio
+            </p>
+            <h2 className="h2">Dispositivos</h2>
+            <p className="lead" style={{ fontSize: 16, marginTop: 6 }}>
+              Instala el agente GOCAS en la PC que está en la red de tu cámara y vincúlalo con un
+              código. Desde aquí controlas todo; el agente hace el trabajo.
+            </p>
+          </div>
+          <AgentManager agents={agents} onChange={refresh} />
+        </section>
+
+        <hr className="divider" style={{ margin: '0 0 48px' }} />
 
         {/* Marcas de agua */}
         <section style={{ marginBottom: 48 }}>
@@ -163,7 +156,7 @@ export default function PanelPage() {
           <div className="row between" style={{ marginBottom: 22, alignItems: 'flex-end' }}>
             <div>
               <p className="kicker" style={{ marginBottom: 8 }}>
-                {lives?.length ?? 0}/{MAX_LIVES} activas
+                {lives?.length ?? 0}/{MAX_LIVES} configuradas
               </p>
               <h2 className="h2">Transmisiones</h2>
             </div>
@@ -193,15 +186,13 @@ export default function PanelPage() {
               ) : null}
             </div>
           ) : (
-            <div
-              className="grid"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}
-            >
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
               {lives.map((l) => (
                 <LiveCard
                   key={l.id}
                   live={l}
                   watermarks={watermarks}
+                  agents={agents}
                   onEdit={openEdit}
                   onDeleted={refresh}
                 />

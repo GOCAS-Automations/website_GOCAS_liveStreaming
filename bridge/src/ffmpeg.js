@@ -200,6 +200,12 @@ export function getStatus(id) {
   };
 }
 
+export function allStatuses() {
+  const out = [];
+  for (const id of sessions.keys()) out.push({ id, ...getStatus(id) });
+  return out;
+}
+
 export function stopAll() {
   for (const id of sessions.keys()) stop(id);
 }

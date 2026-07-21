@@ -1,55 +1,39 @@
 # GOCAS Live
 
-Transmite tu **cámara RTSP a YouTube Live con tu marca de agua incrustada**. Cada usuario gestiona sus marcas y sus transmisiones desde el panel; un pequeño **puente** corre en sitio (en la red de la cámara) y hace el video. Producto de **GOCAS Automations**.
+Transmite tu **cámara RTSP a YouTube Live con tu marca de agua incrustada**, controlando **todo desde el sitio web**. Un pequeño **agente** que instalas una vez en la red de tu cámara hace el trabajo. Producto de **GOCAS Automations**.
 
 ## Cómo funciona
 
 ```
-Cámara RTSP → [ puente local: FFmpeg incrusta la marca ] → YouTube Live (con tu marca quemada)
-Panel (Vercel) ── controla el puente en http://localhost:4000 ──┘
-Login · marcas · transmisiones ↔ Supabase
+Sitio web (Vercel) ── "Transmitir" ──► Supabase ◄── el agente pregunta cada 3s
+                                                     y ejecuta FFmpeg → YouTube
 ```
 
-- El **panel** (Next.js, en Vercel) es el control: login, marcas de agua, transmisiones.
-- El **puente** (Node + FFmpeg, carpeta `bridge/`) corre en una PC **en la misma red de la cámara** (las cámaras RTSP no son accesibles desde internet). Trae su propio FFmpeg; no instalas nada.
-- El live se ve **directo en YouTube** con la marca ya incrustada (no hay reproductor dentro del sitio).
+- El **sitio** (Next.js) es el control total: login, marcas, dispositivos, transmisiones.
+- El **agente** (`bridge/`, Node + FFmpeg empaquetado en .exe) se instala en la PC de la red de la cámara. Se conecta **solo hacia afuera**: no abre puertos, no usa localhost, funciona en cualquier red y SO. Trae su propio FFmpeg.
+- El live se ve en **YouTube** con la marca ya incrustada.
 
-## Correr
+## Flujo para el usuario
 
-**1) El puente** (en la PC de la red de la cámara):
+1. **Regístrate** y sube tu marca de agua (hasta 4).
+2. **Dispositivos → Vincular un dispositivo:** el sitio te da un código.
+3. **Instala el agente** en la PC de la red de la cámara (descomprime, doble clic) y pega el código la primera vez.
+4. **Crea una transmisión** (nombre + marca).
+5. **Transmitir:** elige el dispositivo, pega la URL RTSP y la clave de tu YouTube Live, y un clic. Tu cámara sale en vivo con tu marca. Detienes desde el sitio.
+
+## Correr en desarrollo
 
 ```bash
-cd bridge
-npm install
-npm start           # queda en http://localhost:4000 (solo loopback)
+cd web && npm install && npm run dev       # panel (necesita web/.env.local con las claves de Supabase)
+cd bridge && npm install && npm start       # agente (pide el token, o usa AGENT_TOKEN=...)
 ```
 
-**2) El panel:** usa el sitio publicado, o localmente:
-
-```bash
-cd web
-npm install
-npm run dev         # http://localhost:3000
-```
-
-El panel necesita las variables de Supabase (`web/.env.local`, ver `web/.env.local.example`).
-
-## Flujo
-
-1. **Regístrate** y entra al panel.
-2. **Sube tus marcas de agua** (hasta 4).
-3. **Crea una transmisión**: nombre + marca, posición y tamaño (hasta 100% del ancho). Máx 2 por cuenta.
-4. Abre el **puente** en la PC en sitio. En la tarjeta de la transmisión pega la **URL RTSP** de la cámara y la **clave de retransmisión** de tu YouTube Live.
-5. **Preview local** para verificar, luego **Transmitir a YouTube**. Listo: tu cámara sale en vivo con tu marca.
+Empaquetar el agente a .exe: `cd bridge && npm run build:exe` → `release/gocas-agent.exe` (+ `ffmpeg.exe`).
 
 ## Seguridad
 
-- El puente escucha **solo en `127.0.0.1`**: nadie más en la red puede controlarlo. CORS restringido al sitio GOCAS.
-- La URL RTSP y la clave de YouTube **no se guardan**: viven en memoria mientras transmites.
-- En Supabase cada usuario solo ve y gestiona lo suyo (RLS).
-
-## Coexistencia con otras grabaciones
-
-El puente solo **lee** el RTSP; no reconfigura la cámara. Grabar y transmitir desde la misma cámara conviven. Recomendado: usa un perfil de stream distinto (sub-stream) para el live.
+- Cada usuario solo ve y controla lo suyo (RLS en Supabase).
+- La URL RTSP y la clave de YouTube se guardan mientras transmites y **se borran al detener**.
+- El sitio usa solo la clave pública; la clave secreta vive solo en la función de la nube.
 
 Detalle técnico completo en [`CLAUDE.md`](./CLAUDE.md).

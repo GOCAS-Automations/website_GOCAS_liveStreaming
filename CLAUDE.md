@@ -1,85 +1,83 @@
 # CLAUDE.md · GOCAS Live (liveStreaming_Software)
 
-Memoria del proyecto. Léelo al inicio de cada sesión. Producto de GOCAS Automations. Ver el CLAUDE.md raíz de `GOCAS/` para el contexto del negocio y la marca.
+Memoria del proyecto. Léelo al inicio de cada sesión. Producto de GOCAS Automations. Ver el CLAUDE.md raíz de `GOCAS/` para el negocio y la marca.
 
 ## Qué es
 
-Software para que un usuario **transmita su cámara RTSP a YouTube Live con su marca de agua incrustada**. Multi-usuario: cada quien se registra, sube sus marcas y crea transmisiones. El sitio (Vercel) es el **panel de control**; un **puente local** (en la red de la cámara) hace el trabajo de video.
+SaaS multi-usuario para transmitir una **cámara RTSP a YouTube Live con marca de agua incrustada**. Cualquier usuario se registra y **controla TODO desde el sitio web**; un **agente** instalado en la PC de la red de la cámara hace el trabajo de video.
 
-## Arquitectura (decisión firme 21-jul-2026: "puente de vuelta")
+## Arquitectura FINAL: "agente + nube" (decisión firme 21-jul-2026)
 
-Nota histórica: hubo una iteración "web pura, sin puente" que se descartó porque perdía el sentido (no se puede leer RTSP desde Vercel). El modelo actual reintroduce el puente:
+Iteraciones descartadas: reproductor propio → web pura sin puente → puente localhost controlado desde el sitio (falló: el navegador bloquea HTTPS→localhost por PNA/mixed-content, y un .exe no sirve para Mac). Modelo actual:
 
 ```
-Cámara RTSP → [ puente local: FFmpeg incrusta la marca ] → RTMP → YouTube Live (con marca quemada)
-Panel (Vercel) ── controla el puente vía http://localhost:4000 (mismo PC) ──┘
-Panel/datos (login, marcas, transmisiones) ↔ Supabase (auth · Postgres · Storage)
+Sitio (Vercel) --"Transmitir"--> Supabase (desired_state='live' + secretos)
+                                     ▲            │
+   Agente en la red de la cámara ───┘ (cada 3s pregunta a la Edge Function agent-sync)
+   ejecuta FFmpeg: RTSP → marca incrustada → YouTube ; reporta estado de vuelta
 ```
 
-- **Vercel no puede** ingerir RTSP ni transcodificar. Por eso el **puente** (Node+FFmpeg, `bridge/`) corre en una PC **en la misma red de la cámara** (las cámaras RTSP viven en la LAN). Hoy = el PC del operador en sitio; futuro = un mini-PC/Raspberry siempre encendido para transmitir sin nadie presente.
-- El **panel en Vercel** habla con el puente en `http://localhost:4000` (localhost está exento de bloqueo mixto; el puente responde CORS + **Access-Control-Allow-Private-Network**). Así el operador usa el sitio publicado y su puente local a la vez.
-- **NO hay viewer público** dentro del sitio: el live se ve directo en YouTube (con la marca ya incrustada). Se eliminaron `/live/[slug]` y el RPC `get_public_live`.
-- La **marca de agua se incrusta con FFmpeg** (se ve en YouTube, no se puede quitar). El tamaño llega a 100% (cubrir todo el ancho). Validado visualmente.
-
-## Seguridad
-
-- **Puente:** escucha SOLO en `127.0.0.1` (loopback) por defecto → nadie en la LAN puede controlarlo aunque sepa la IP; solo la propia máquina. CORS restringido a los orígenes GOCAS (Vercel + localhost). Para un dispositivo dedicado (HOST=0.0.0.0) hay que añadir token — no hacerlo sin eso.
-- **Credenciales:** la URL RTSP (con clave) y la clave de YouTube **nunca** se guardan (ni en Supabase ni en disco). Se escriben en el panel al transmitir y viven solo en memoria del puente.
-- **Supabase:** RLS por dueño (cada usuario solo lo suyo), verificado por REST. La web usa solo la clave publishable (pública). La service_role jamás va al repo.
-- **Coexistencia con Smash Vision:** RTSP es lectura "pull"; el puente solo lee, no reconfigura la cámara. Grabar (Smash) y transmitir (GOCAS) desde la misma cámara conviven. Recomendado: el live use un perfil de stream distinto (sub-stream) al de la grabación, y confirmar el máximo de conexiones RTSP simultáneas del modelo.
-
-## Stack
-
-- **web/**: Next.js 14 · React 18 · TS · `@supabase/ssr` · `hls.js` (preview) · estilos inline + `globals.css` (estética Apple, paleta GOCAS). Toasts propios (`lib/toast.tsx`).
-- **bridge/**: Node (ESM) · Express · `ffmpeg-static` (trae su binario). Stateless: recibe todo del panel por request; descarga la marca desde la URL pública de Supabase.
+- **El agente solo se conecta HACIA AFUERA** (a Supabase). No abre servidor, no recibe conexiones, no usa localhost → funciona en cualquier red y SO.
+- **Todo se controla desde el sitio.** El usuario instala el agente una vez, lo vincula con un token, y se olvida.
+- No hay viewer en el sitio: el live se ve en YouTube con la marca ya incrustada.
 
 ## Estructura
 
 ```
 liveStreaming_Software/
 ├── CLAUDE.md · README.md · .gitignore
-├── web/                              (se despliega en Vercel)
-│   ├── middleware.ts                 (sesión + protege /panel)
+├── web/  (Next.js → Vercel)
+│   ├── middleware.ts  (sesión + protege /panel)
 │   ├── app/  page.tsx (landing+manual) · login/ · panel/ · layout · globals.css · icon.png
-│   ├── components/ ui.tsx · HlsPreview.tsx · panel/{WatermarkManager,LiveForm,LiveCard}.tsx
-│   └── lib/  supabase/{client,server,middleware} · data.ts · bridge.ts · toast.tsx · format.ts · tokens.ts · database.types.ts
-└── bridge/                           (corre local, en la red de la cámara)
-    ├── src/ config.js · ffmpeg.js · server.js
-    └── .env.example
+│   ├── components/ ui.tsx · panel/{AgentManager,WatermarkManager,LiveForm,LiveCard}.tsx
+│   └── lib/ supabase/{client,server,middleware} · data.ts · toast.tsx · format.ts · tokens.ts · database.types.ts
+└── bridge/  (el AGENTE — Node+FFmpeg, se empaqueta a .exe)
+    ├── src/ agent.js (poller headless) · ffmpeg.js (motor) · config.js
+    ├── package.json  (scripts: start, dev, bundle, build:exe)
+    └── release/  (gitignored: gocas-agent.exe + ffmpeg.exe + GOCAS-Agente.zip)
 ```
 
-## Supabase
+## Supabase (proyecto `iqdskgjmxfirtsncazms`)
 
-- Proyecto `iqdskgjmxfirtsncazms` · URL `https://iqdskgjmxfirtsncazms.supabase.co` (org gocas-automation).
-- Tablas `lives`, `watermarks` con RLS por dueño. Límites (triggers): 2 lives, 4 marcas. Slug único (trigger). Bucket público `watermarks` (escritura solo carpeta propia `{uid}/`).
-- La columna `lives.youtube_video_id` quedó sin uso (era del viewer); inofensiva.
-- Auth email+password. `mailer_autoconfirm=false` → los registros exigen confirmar correo. Para onboarding fluido: desactivar "Confirm email" en el dashboard (o configurar SMTP con Resend después).
-- Migraciones: `core_schema_lives_watermarks`, `storage_watermarks_bucket`, `security_hardening`, `drop_public_viewer_rpc`.
+- URL `https://iqdskgjmxfirtsncazms.supabase.co` (org gocas-automation).
+- **Tablas** (RLS por dueño): `watermarks`, `agents`, `lives`. Límites por trigger: 2 lives, 4 marcas, 3 agentes. Bucket público `watermarks` (escritura solo carpeta propia).
+- **`agents`**: id, user_id, name, token_hash (sha256 del token de dispositivo), last_seen_at.
+- **`lives`** (control remoto): agent_id, desired_state ('idle'|'live'), current_state, status_error, log_tail, y los SECRETOS `rtsp_url` + `youtube_key` (se llenan al transmitir y **se borran al detener**).
+- **Edge Function `agent-sync`** (verify_jwt=false; auth propia: valida token_hash con service role): recibe {token, report[]}, actualiza estado/heartbeat, devuelve las transmisiones con desired_state='live' de ese agente (con secretos + URL pública de la marca). Migraciones: core_schema, storage_watermarks, security_hardening, drop_public_viewer_rpc, agents_and_remote_control.
+- **Auth** email+password, `mailer_autoconfirm=false`. Configurar Site URL = dominio Vercel (Authentication → URL Configuration) para que los correos de confirmación no vayan a localhost.
 
-## Cómo correr
+## El agente (`bridge/`)
+
+- `src/agent.js`: sin servidor HTTP. Resuelve el token (env AGENT_TOKEN → archivo `~/.gocas-live-agent` → pregunta por consola la 1ª vez y lo guarda). Loop cada 3s: reporta estados + recibe desired → reconcilia FFmpeg (start/stop) → repite.
+- Empaquetado: `npm run build:exe` = esbuild (bundle CJS, evita el problema ESM de pkg) → pkg node22-win-x64 → `release/gocas-agent.exe`; copia el ffmpeg de `ffmpeg-static` a `release/ffmpeg.exe` (el agente lo busca junto al ejecutable vía `process.pkg`). Para Mac: mismo código, target macos de pkg + ffmpeg de Mac + nota de Gatekeeper (pendiente).
+- La clave anon (pública) va embebida en agent.js para pasar el gateway de funciones.
+
+## Seguridad
+
+- Secretos (RTSP con clave, clave YouTube) protegidos por RLS y **borrados al detener**. Es un producto tipo Restream. PENDIENTE: cifrado extremo-a-extremo antes de clientes externos.
+- La web usa solo la clave publishable (pública). La service_role vive solo en la Edge Function (inyectada por Supabase).
+- Coexistencia con Smash Vision: RTSP es lectura pull; el agente solo lee. Usar sub-stream distinto para el live.
+
+## Cómo correr / probar
 
 ```bash
-# 1) Puente (en la PC de la red de la cámara)
-cd bridge && npm install && npm start        # http://localhost:4000 (loopback)
-
-# 2) Web (local) — o usa el sitio publicado en Vercel
-cd web && npm install && npm run dev          # http://localhost:3000
+cd web && npm install && npm run dev          # panel local
+cd bridge && npm install && npm start          # agente (pide token o usa AGENT_TOKEN)
 ```
-Flujo: registro → subir marcas → crear transmisión (marca+posición+tamaño) → en la tarjeta pegar RTSP + clave de YouTube → "Preview local" (verificar) → "Transmitir a YouTube".
+Flujo: registro → Dispositivos: crear agente (copiar token) → abrir agente, pegar token → Marcas: subir logo → Transmisiones: crear → pegar RTSP + clave YouTube + elegir dispositivo → Transmitir.
 
 ## Despliegue
 
-- **web → Vercel:** ya publicado en `https://website-gocas-live-streaming.vercel.app` (repo `GOCAS-Automations/website_GOCAS_liveStreaming`, Root Directory `web/`, env `NEXT_PUBLIC_SUPABASE_*`). Auto-deploy en cada push a `main`.
-- **bridge → local:** el usuario lo corre en sitio. El puente permite el origen del dominio Vercel + `*.vercel.app` + localhost.
+- **web → Vercel** (ya en `https://website-gocas-live-streaming.vercel.app`, repo `GOCAS-Automations/website_GOCAS_liveStreaming`, Root=web/, auto-deploy en push a main). Env: `NEXT_PUBLIC_SUPABASE_*` y opcional `NEXT_PUBLIC_AGENT_DOWNLOAD_URL` (URL del instalador).
+- **agente → usuario**: descarga `GOCAS-Agente.zip` y lo corre. Falta hospedar el ZIP (Supabase Storage / GitHub Releases) y setear la env de descarga.
 
 ## Roadmap / pendientes
 
-- [ ] Probar en el club: Smash grabando + live GOCAS simultáneos, sin conflicto.
-- [ ] Empaquetar el puente para no-técnicos (instalador/exe) y, futuro, dispositivo en sitio (mini-PC) con token de auth.
-- [ ] Desactivar confirmación de correo o configurar SMTP (Resend).
-- [ ] Métricas de audiencia; más protocolos de cámara (iPhone/WebRTC/RTMP).
-- [ ] Dominio propio (live.gocas.co).
+- [ ] Hospedar el instalador del agente y setear `NEXT_PUBLIC_AGENT_DOWNLOAD_URL`.
+- [ ] Probar en el club con cámara real (+ que Smash Vision grabe en paralelo sin conflicto).
+- [ ] Binario del agente para Mac (y auto-arranque / instalar como servicio).
+- [ ] Cifrado E2E de secretos; métricas de audiencia; más protocolos (iPhone/WebRTC).
 
 ## Estado actual
 
-- 21-jul-2026: Reintroducido el puente (RTSP→marca incrustada→YouTube) + preview HLS local, controlado desde el panel en Vercel vía localhost (CORS+PNA). Quitado el viewer público. Escala de marca hasta 100%. Sistema de toasts (éxito/error/aviso) abajo-derecha. Puente endurecido a loopback (127.0.0.1). Build limpio; pipeline FFmpeg y CORS/PNA verificados. Web ya en Vercel. Falta: prueba real con cámara del club + YouTube, y decidir confirmación de correo.
+- 21-jul-2026: Arquitectura agente+nube construida y **validada end-to-end** (arrancar/detener desde la nube con reporte de estado). Build web limpio; `agent-sync` desplegada; agente .exe probado (conecta a la nube, maneja token). Landing/panel actualizados (Dispositivos + control remoto). Pendiente: hospedar instalador + prueba con cámara real.

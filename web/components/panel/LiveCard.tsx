@@ -1,15 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { deleteLive, type Live, type Watermark } from '@/lib/data';
-import { bridge, hlsUrl, type BridgeStatus } from '@/lib/bridge';
+import { useState } from 'react';
+import {
+  deleteLive,
+  goLive,
+  stopLive,
+  agentOnline,
+  type Live,
+  type Watermark,
+  type Agent,
+} from '@/lib/data';
 import { useToast } from '@/lib/toast';
-import HlsPreview from '@/components/HlsPreview';
 
-const BADGE: Record<string, { cls: string; label: string; pulse?: boolean }> = {
+const STATE_BADGE: Record<string, { cls: string; label: string; pulse?: boolean }> = {
   idle: { cls: 'badge', label: 'Detenido' },
-  starting: { cls: 'badge', label: 'Iniciando' },
-  preview: { cls: 'badge badge-ready', label: 'Preview', pulse: true },
+  starting: { cls: 'badge badge-ready', label: 'Iniciando', pulse: true },
   live: { cls: 'badge badge-live', label: 'En vivo', pulse: true },
   restarting: { cls: 'badge badge-ready', label: 'Reconectando', pulse: true },
   error: { cls: 'badge', label: 'Error' },
@@ -18,88 +23,53 @@ const BADGE: Record<string, { cls: string; label: string; pulse?: boolean }> = {
 export default function LiveCard({
   live,
   watermarks,
+  agents,
   onEdit,
   onDeleted,
 }: {
   live: Live;
   watermarks: Watermark[];
+  agents: Agent[];
   onEdit: (live: Live) => void;
   onDeleted: () => void;
 }) {
   const toast = useToast();
   const wm = watermarks.find((w) => w.id === live.watermark_id) || null;
+  const isLive = live.desired_state === 'live';
 
   const [rtsp, setRtsp] = useState('');
-  const [streamKey, setStreamKey] = useState('');
-  const [audio, setAudio] = useState<'camera' | 'silent'>('camera');
-  const [status, setStatus] = useState<BridgeStatus>({ status: 'idle', mode: null });
+  const [youtubeKey, setYoutubeKey] = useState('');
+  const [agentId, setAgentId] = useState(agents[0]?.id || '');
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
-  const lastErrRef = useRef<string | null>(null);
 
-  const active = status.status !== 'idle' && status.status !== 'error';
+  // Estado a mostrar: si desired=idle -> Detenido; si live -> lo que reporta el agente.
+  const badge = isLive
+    ? STATE_BADGE[live.current_state] || STATE_BADGE.starting
+    : STATE_BADGE.idle;
 
-  const poll = useCallback(async () => {
-    try {
-      const { status: s } = await bridge.status(live.id);
-      setStatus(s);
-      if (s.status === 'error' && s.lastError && lastErrRef.current !== s.lastError) {
-        lastErrRef.current = s.lastError;
-        toast.error(s.lastError);
-      }
-      if (s.status !== 'error') lastErrRef.current = null;
-    } catch {
-      /* puente apagado: no spamear */
+  async function transmit() {
+    if (!agentId) {
+      toast.warning('Elige un dispositivo (agente).');
+      return;
     }
-  }, [live.id, toast]);
-
-  useEffect(() => {
-    poll();
-    const t = setInterval(poll, 3000);
-    return () => clearInterval(t);
-  }, [poll]);
-
-  function buildBody(mode: 'preview' | 'youtube') {
-    return {
-      mode,
-      rtspUrl: rtsp.trim(),
-      streamKey: streamKey.trim(),
-      watermarkUrl: wm?.url ?? null,
-      position: live.wm_position,
-      opacity: live.wm_opacity,
-      scale: live.wm_scale,
-      margin: live.wm_margin,
-      audio,
-      videoBitrate: '4500k',
-    };
-  }
-
-  async function start(mode: 'preview' | 'youtube') {
     if (!rtsp.trim()) {
       toast.warning('Pega la URL RTSP de tu cámara.');
       return;
     }
-    if (mode === 'youtube' && !streamKey.trim()) {
+    if (!youtubeKey.trim()) {
       toast.warning('Pega la clave de retransmisión de YouTube.');
       return;
     }
     setBusy(true);
     try {
-      const { status: s } = await bridge.start(live.id, buildBody(mode));
-      setStatus(s);
-      lastErrRef.current = null;
-      toast.success(
-        mode === 'youtube'
-          ? `Transmitiendo "${live.title}" a YouTube.`
-          : `Preview local de "${live.title}" iniciado.`,
-      );
+      await goLive(live.id, { agentId, rtspUrl: rtsp.trim(), youtubeKey: youtubeKey.trim() });
+      setRtsp('');
+      setYoutubeKey('');
+      toast.success(`Orden enviada. El agente iniciará "${live.title}".`);
+      onDeleted(); // refresca la lista
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'No se pudo iniciar.';
-      toast.error(
-        /fetch|Failed|NetworkError|Load failed/i.test(msg)
-          ? 'No hay conexión con el puente. ¿Lo tienes corriendo en tu PC?'
-          : msg,
-      );
+      toast.error(err instanceof Error ? err.message : 'No se pudo iniciar.');
     } finally {
       setBusy(false);
     }
@@ -108,11 +78,11 @@ export default function LiveCard({
   async function stop() {
     setBusy(true);
     try {
-      const { status: s } = await bridge.stop(live.id);
-      setStatus(s);
-      toast.info(`"${live.title}" detenido.`);
-    } catch {
-      toast.error('No se pudo detener (¿puente apagado?).');
+      await stopLive(live.id);
+      toast.info(`Deteniendo "${live.title}".`);
+      onDeleted();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo detener.');
     } finally {
       setBusy(false);
     }
@@ -130,7 +100,7 @@ export default function LiveCard({
     }
   }
 
-  const badge = BADGE[status.status] || BADGE.idle;
+  const noAgents = agents.length === 0;
 
   return (
     <div className="card">
@@ -188,21 +158,32 @@ export default function LiveCard({
         </span>
       </div>
 
-      {/* Preview HLS cuando corre preview local */}
-      {status.status === 'preview' ? (
-        <div style={{ marginBottom: 14 }}>
-          <div className="stage">
-            <HlsPreview src={hlsUrl(live.id)} />
-          </div>
-          <p className="hint" style={{ marginTop: 6 }}>
-            Preview local con la marca incrustada. Puede tardar unos segundos en aparecer.
-          </p>
-        </div>
+      {/* Error reportado por el agente */}
+      {isLive && live.current_state === 'error' && live.status_error ? (
+        <p style={{ color: 'var(--danger)', fontSize: 13.5, marginBottom: 12 }}>{live.status_error}</p>
       ) : null}
 
-      {/* Credenciales (solo cuando está detenido) */}
-      {!active ? (
+      {/* Formulario de transmisión (cuando está detenido) */}
+      {!isLive ? (
         <div style={{ marginBottom: 12 }}>
+          <div className="row" style={{ gap: 10, alignItems: 'flex-end' }}>
+            <label className="field" style={{ marginBottom: 10, flex: 1, minWidth: 200 }}>
+              <span>Dispositivo (agente)</span>
+              <select
+                className="select"
+                value={agentId}
+                onChange={(e) => setAgentId(e.target.value)}
+                disabled={noAgents}
+              >
+                {noAgents ? <option value="">Vincula un dispositivo arriba</option> : null}
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} {agentOnline(a) ? '· en línea' : '· desconectado'}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <label className="field" style={{ marginBottom: 10 }}>
             <span>URL RTSP de la cámara</span>
             <input
@@ -214,52 +195,37 @@ export default function LiveCard({
               spellCheck={false}
             />
           </label>
-          <div className="row" style={{ gap: 10, alignItems: 'flex-end' }}>
-            <label className="field" style={{ marginBottom: 0, flex: 1, minWidth: 200 }}>
-              <span>Clave de retransmisión de YouTube</span>
-              <input
-                className="input mono"
-                type="password"
-                value={streamKey}
-                onChange={(e) => setStreamKey(e.target.value)}
-                placeholder="xxxx-xxxx-xxxx-xxxx"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </label>
-            <label className="field" style={{ marginBottom: 0, width: 140 }}>
-              <span>Audio</span>
-              <select
-                className="select"
-                value={audio}
-                onChange={(e) => setAudio(e.target.value as 'camera' | 'silent')}
-              >
-                <option value="camera">De la cámara</option>
-                <option value="silent">Silencio</option>
-              </select>
-            </label>
-          </div>
-          <p className="hint">No se guardan: viven en memoria mientras transmites.</p>
+          <label className="field" style={{ marginBottom: 6 }}>
+            <span>Clave de retransmisión de YouTube</span>
+            <input
+              className="input mono"
+              type="password"
+              value={youtubeKey}
+              onChange={(e) => setYoutubeKey(e.target.value)}
+              placeholder="xxxx-xxxx-xxxx-xxxx"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+          <p className="hint">
+            Se guardan cifradas mientras transmites y se borran al detener. El agente en tu red debe
+            estar en línea.
+          </p>
         </div>
       ) : null}
 
       {/* Controles */}
       <div className="row">
-        {!active ? (
-          <>
-            <button className="btn btn-olive btn-sm" onClick={() => start('preview')} disabled={busy}>
-              Preview local
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={() => start('youtube')} disabled={busy}>
-              Transmitir a YouTube
-            </button>
-          </>
+        {!isLive ? (
+          <button className="btn btn-primary btn-sm" onClick={transmit} disabled={busy || noAgents}>
+            Transmitir a YouTube
+          </button>
         ) : (
           <button className="btn btn-danger btn-sm" onClick={stop} disabled={busy}>
             Detener
           </button>
         )}
-        <button className="btn btn-quiet btn-sm" onClick={() => onEdit(live)} disabled={active}>
+        <button className="btn btn-quiet btn-sm" onClick={() => onEdit(live)} disabled={isLive}>
           Editar
         </button>
         {confirmDel ? (
@@ -275,7 +241,7 @@ export default function LiveCard({
           <button
             className="btn btn-quiet btn-sm"
             onClick={() => setConfirmDel(true)}
-            disabled={active}
+            disabled={isLive}
             style={{ marginLeft: 'auto', color: 'var(--danger)' }}
           >
             Eliminar
@@ -283,17 +249,14 @@ export default function LiveCard({
         )}
       </div>
 
-      {/* Logs */}
-      {active && status.logTail && status.logTail.length > 0 ? (
+      {/* Log del agente */}
+      {isLive && live.log_tail ? (
         <details style={{ marginTop: 12 }}>
-          <summary
-            className="mono"
-            style={{ fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}
-          >
-            Registro de FFmpeg
+          <summary className="mono" style={{ fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>
+            Registro del agente
           </summary>
           <div className="log" style={{ marginTop: 8 }}>
-            {status.logTail.join('\n')}
+            {live.log_tail}
           </div>
         </details>
       ) : null}
