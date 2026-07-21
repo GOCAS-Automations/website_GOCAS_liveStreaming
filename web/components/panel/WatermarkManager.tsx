@@ -8,6 +8,7 @@ import {
   deleteWatermark,
   type Watermark,
 } from '@/lib/data';
+import { useToast } from '@/lib/toast';
 
 export default function WatermarkManager({
   watermarks,
@@ -16,6 +17,7 @@ export default function WatermarkManager({
   watermarks: Watermark[];
   onChange: () => void;
 }) {
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -41,9 +43,12 @@ export default function WatermarkManager({
     try {
       const name = file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'marca';
       await uploadWatermark(file, name);
+      toast.success(`Marca "${name}" subida.`);
       onChange();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo subir.');
+      const msg = err instanceof Error ? err.message : 'No se pudo subir.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -55,10 +60,13 @@ export default function WatermarkManager({
     setBusy(true);
     try {
       await renameWatermark(id, editName);
+      toast.success('Marca renombrada.');
       setEditing(null);
       onChange();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo renombrar.');
+      const msg = err instanceof Error ? err.message : 'No se pudo renombrar.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -68,10 +76,13 @@ export default function WatermarkManager({
     setBusy(true);
     try {
       await deleteWatermark(wm);
+      toast.success('Marca eliminada.');
       setConfirmDel(null);
       onChange();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo eliminar.');
+      const msg = err instanceof Error ? err.message : 'No se pudo eliminar.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

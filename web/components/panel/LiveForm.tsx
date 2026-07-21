@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { saveLive, type Live, type Watermark } from '@/lib/data';
-import { slugify, extractYouTubeId, type WatermarkPosition } from '@/lib/format';
+import { slugify, type WatermarkPosition } from '@/lib/format';
 import { POSITIONS } from '@/lib/tokens';
 import { WatermarkFrame } from '@/components/ui';
+import { useToast } from '@/lib/toast';
 
 interface Props {
   initial: Live | null;
@@ -14,10 +15,9 @@ interface Props {
 }
 
 export default function LiveForm({ initial, watermarks, onSaved, onCancel }: Props) {
+  const toast = useToast();
   const [title, setTitle] = useState(initial?.title || '');
-  const [slug, setSlug] = useState(initial?.slug || '');
   const [description, setDescription] = useState(initial?.description || '');
-  const [youtube, setYoutube] = useState(initial?.youtube_video_id || '');
   const [watermarkId, setWatermarkId] = useState<string | null>(initial?.watermark_id ?? null);
   const [position, setPosition] = useState<WatermarkPosition>(
     (initial?.wm_position as WatermarkPosition) || 'bottom-right',
@@ -26,43 +26,42 @@ export default function LiveForm({ initial, watermarks, onSaved, onCancel }: Pro
   const [scale, setScale] = useState(initial?.wm_scale ?? 0.15);
   const [margin, setMargin] = useState(initial?.wm_margin ?? 24);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const selectedWm = useMemo(
     () => watermarks.find((w) => w.id === watermarkId) || null,
     [watermarks, watermarkId],
   );
 
-  const previewSlug = (slug.trim() ? slugify(slug) : slugify(title)) || 'auto';
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      setError('El título es obligatorio.');
+      toast.warning('El título es obligatorio.');
       return;
     }
     setSaving(true);
-    setError(null);
     try {
       await saveLive({
         id: initial?.id,
         title: title.trim().slice(0, 120),
-        slug: slug.trim() ? slugify(slug) : slugify(title),
+        slug: slugify(title),
         description: description.trim().slice(0, 400),
-        youtube_video_id: extractYouTubeId(youtube),
+        youtube_video_id: '',
         watermark_id: watermarkId,
         wm_position: position,
         wm_opacity: opacity,
         wm_scale: scale,
         wm_margin: margin,
       });
+      toast.success(initial ? 'Transmisión actualizada.' : 'Transmisión creada.');
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar.');
+      toast.error(err instanceof Error ? err.message : 'No se pudo guardar.');
     } finally {
       setSaving(false);
     }
   }
+
+  const marginDisabled = position === 'center';
 
   return (
     <form className="card" onSubmit={submit} style={{ borderColor: 'var(--amber)' }}>
@@ -90,50 +89,22 @@ export default function LiveForm({ initial, watermarks, onSaved, onCancel }: Pro
             />
           </label>
 
-          <label className="field">
-            <span>Ruta (slug) — opcional</span>
-            <input
-              className="input mono"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="camara-principal"
-            />
-            <span className="hint">
-              Tu enlace: <span className="mono">/live/{previewSlug}</span>. Si lo dejas vacío se
-              genera del título.
-            </span>
-          </label>
-
-          <label className="field">
+          <label className="field" style={{ marginBottom: 0 }}>
             <span>Descripción — opcional</span>
             <textarea
               className="textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Qué se transmite, cuándo…"
+              placeholder="Para identificar esta transmisión (cámara, ubicación…)."
               maxLength={400}
             />
-          </label>
-
-          <label className="field" style={{ marginBottom: 0 }}>
-            <span>Enlace del video de YouTube</span>
-            <input
-              className="input"
-              value={youtube}
-              onChange={(e) => setYoutube(e.target.value)}
-              placeholder="https://youtu.be/XXXXXXXXXXX"
-            />
-            <span className="hint">
-              El enlace del video en vivo que creaste en YouTube. Es lo que verán tus espectadores en
-              tu página GOCAS.
-            </span>
           </label>
         </div>
 
         {/* Marca de agua */}
         <div>
           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--olive)', marginBottom: 10 }}>
-            Marca de agua sobre el marco
+            Marca de agua sobre el video
           </p>
           <WatermarkFrame
             url={selectedWm?.url ?? null}
@@ -178,14 +149,15 @@ export default function LiveForm({ initial, watermarks, onSaved, onCancel }: Pro
           </label>
 
           <label className="field">
-            <span>Tamaño — {Math.round(scale * 100)}%</span>
+            <span>Tamaño — {Math.round(scale * 100)}% del ancho</span>
             <input
               type="range"
               min={5}
-              max={40}
+              max={100}
               value={Math.round(scale * 100)}
               onChange={(e) => setScale(Number(e.target.value) / 100)}
             />
+            <span className="hint">Súbelo hasta 100% para cubrir todo el ancho del video.</span>
           </label>
 
           <label className="field">
@@ -200,23 +172,25 @@ export default function LiveForm({ initial, watermarks, onSaved, onCancel }: Pro
             />
           </label>
 
-          <label className="field" style={{ marginBottom: 0 }}>
+          <label className="field" style={{ marginBottom: 0, opacity: marginDisabled ? 0.5 : 1 }}>
             <span>Margen — {margin}px</span>
             <input
               type="range"
               min={0}
-              max={80}
+              max={120}
               step={2}
               value={margin}
               onChange={(e) => setMargin(Number(e.target.value))}
+              disabled={marginDisabled}
             />
+            <span className="hint">
+              {marginDisabled
+                ? 'El margen no aplica cuando la posición es Centro.'
+                : 'Separación desde el borde (solo en las esquinas).'}
+            </span>
           </label>
         </div>
       </div>
-
-      {error ? (
-        <p style={{ color: 'var(--danger)', marginTop: 16, fontSize: 14 }}>{error}</p>
-      ) : null}
 
       <div className="row" style={{ marginTop: 22 }}>
         <button type="submit" className="btn btn-primary" disabled={saving}>

@@ -1,98 +1,85 @@
 # CLAUDE.md · GOCAS Live (liveStreaming_Software)
 
-Memoria del proyecto. Léelo al inicio de cada sesión de este proyecto. Producto de GOCAS Automations. Ver el CLAUDE.md raíz de `GOCAS/` para el contexto del negocio y la marca.
+Memoria del proyecto. Léelo al inicio de cada sesión. Producto de GOCAS Automations. Ver el CLAUDE.md raíz de `GOCAS/` para el contexto del negocio y la marca.
 
 ## Qué es
 
-Webapp multi-usuario para **gestionar transmisiones en vivo enmarcadas con tu marca**. Cada usuario se registra, sube sus marcas de agua y crea transmisiones; cada live vive en su propia URL `/live/<slug>` que embebe un video en vivo de YouTube dentro de un marco GOCAS, con la **marca de agua superpuesta**. Visión: métricas, más protocolos de cámara.
+Software para que un usuario **transmita su cámara RTSP a YouTube Live con su marca de agua incrustada**. Multi-usuario: cada quien se registra, sube sus marcas y crea transmisiones. El sitio (Vercel) es el **panel de control**; un **puente local** (en la red de la cámara) hace el trabajo de video.
 
-## Arquitectura — WEB PURA (decisión 21-jul-2026)
+## Arquitectura (decisión firme 21-jul-2026: "puente de vuelta")
 
-Todo corre en Vercel + Supabase. **No hay servidor de video / FFmpeg / puente RTSP** (se descartó por decisión del cliente: "web pura, sin puente"). Implicaciones:
-
-- La **marca de agua es un overlay CSS** sobre el marco del viewer (encima del iframe de YouTube). NO se incrusta en el video de YouTube, y no sobrevive al fullscreen del reproductor de YouTube. Es branding del marco GOCAS.
-- La **ingesta a YouTube la hace el usuario por fuera** (OBS, encoder de hardware, o la app de su cámara). GOCAS no transmite ni transcodifica.
-- Si en el futuro se quiere marca de agua incrustada real o puente RTSP→YouTube, hace falta un servicio con FFmpeg en un VPS (se construyó un `bridge/` en una iteración previa y se eliminó; el patrón queda documentado en el historial de la conversación).
+Nota histórica: hubo una iteración "web pura, sin puente" que se descartó porque perdía el sentido (no se puede leer RTSP desde Vercel). El modelo actual reintroduce el puente:
 
 ```
-Cámara → (OBS/encoder del usuario) → YouTube Live → embed en /live/<slug> (marco GOCAS + overlay de marca)
-Gestión (login, lives, marcas) → Next.js en Vercel ↔ Supabase (auth, Postgres, Storage)
+Cámara RTSP → [ puente local: FFmpeg incrusta la marca ] → RTMP → YouTube Live (con marca quemada)
+Panel (Vercel) ── controla el puente vía http://localhost:4000 (mismo PC) ──┘
+Panel/datos (login, marcas, transmisiones) ↔ Supabase (auth · Postgres · Storage)
 ```
+
+- **Vercel no puede** ingerir RTSP ni transcodificar. Por eso el **puente** (Node+FFmpeg, `bridge/`) corre en una PC **en la misma red de la cámara** (las cámaras RTSP viven en la LAN). Hoy = el PC del operador en sitio; futuro = un mini-PC/Raspberry siempre encendido para transmitir sin nadie presente.
+- El **panel en Vercel** habla con el puente en `http://localhost:4000` (localhost está exento de bloqueo mixto; el puente responde CORS + **Access-Control-Allow-Private-Network**). Así el operador usa el sitio publicado y su puente local a la vez.
+- **NO hay viewer público** dentro del sitio: el live se ve directo en YouTube (con la marca ya incrustada). Se eliminaron `/live/[slug]` y el RPC `get_public_live`.
+- La **marca de agua se incrusta con FFmpeg** (se ve en YouTube, no se puede quitar). El tamaño llega a 100% (cubrir todo el ancho). Validado visualmente.
+
+## Seguridad
+
+- **Puente:** escucha SOLO en `127.0.0.1` (loopback) por defecto → nadie en la LAN puede controlarlo aunque sepa la IP; solo la propia máquina. CORS restringido a los orígenes GOCAS (Vercel + localhost). Para un dispositivo dedicado (HOST=0.0.0.0) hay que añadir token — no hacerlo sin eso.
+- **Credenciales:** la URL RTSP (con clave) y la clave de YouTube **nunca** se guardan (ni en Supabase ni en disco). Se escriben en el panel al transmitir y viven solo en memoria del puente.
+- **Supabase:** RLS por dueño (cada usuario solo lo suyo), verificado por REST. La web usa solo la clave publishable (pública). La service_role jamás va al repo.
+- **Coexistencia con Smash Vision:** RTSP es lectura "pull"; el puente solo lee, no reconfigura la cámara. Grabar (Smash) y transmitir (GOCAS) desde la misma cámara conviven. Recomendado: el live use un perfil de stream distinto (sub-stream) al de la grabación, y confirmar el máximo de conexiones RTSP simultáneas del modelo.
 
 ## Stack
 
-Next.js 14 · React 18 · TypeScript · `@supabase/ssr` + `@supabase/supabase-js` · estilos inline + `app/globals.css`. Sin Tailwind. Sin dependencias de video.
+- **web/**: Next.js 14 · React 18 · TS · `@supabase/ssr` · `hls.js` (preview) · estilos inline + `globals.css` (estética Apple, paleta GOCAS). Toasts propios (`lib/toast.tsx`).
+- **bridge/**: Node (ESM) · Express · `ffmpeg-static` (trae su binario). Stateless: recibe todo del panel por request; descarga la marca desde la URL pública de Supabase.
 
 ## Estructura
 
 ```
 liveStreaming_Software/
 ├── CLAUDE.md · README.md · .gitignore
-└── web/                         (todo el producto; se despliega en Vercel)
-    ├── middleware.ts            (refresca sesión + protege /panel)
-    ├── app/
-    │   ├── page.tsx             (landing + manual de 4 pasos, nav según sesión)
-    │   ├── login/page.tsx       (login/registro, Supabase Auth)
-    │   ├── panel/page.tsx       (privado: marcas + transmisiones)
-    │   ├── live/[slug]/page.tsx (público: embed YouTube + overlay, vía RPC)
-    │   ├── layout.tsx · globals.css · icon.png
-    ├── components/
-    │   ├── ui.tsx               (Wordmark, WatermarkFrame, wmOverlayStyle)
-    │   └── panel/               (WatermarkManager, LiveForm, LiveCard)
-    └── lib/
-        ├── supabase/            (client.ts, server.ts, middleware.ts)
-        ├── data.ts              (CRUD lives + watermarks, límites)
-        ├── format.ts            (slugify, extractYouTubeId)
-        ├── tokens.ts            (paleta, posiciones)
-        └── database.types.ts    (tipos generados de Supabase)
+├── web/                              (se despliega en Vercel)
+│   ├── middleware.ts                 (sesión + protege /panel)
+│   ├── app/  page.tsx (landing+manual) · login/ · panel/ · layout · globals.css · icon.png
+│   ├── components/ ui.tsx · HlsPreview.tsx · panel/{WatermarkManager,LiveForm,LiveCard}.tsx
+│   └── lib/  supabase/{client,server,middleware} · data.ts · bridge.ts · toast.tsx · format.ts · tokens.ts · database.types.ts
+└── bridge/                           (corre local, en la red de la cámara)
+    ├── src/ config.js · ffmpeg.js · server.js
+    └── .env.example
 ```
 
 ## Supabase
 
-- **Proyecto:** `iqdskgjmxfirtsncazms` · URL `https://iqdskgjmxfirtsncazms.supabase.co` (org GOCAS `gocas-automation`).
-- **Tablas** (`public`): `lives`, `watermarks`. Todo con **RLS: cada usuario solo ve/gestiona lo suyo** (`auth.uid() = user_id`).
-- **Límites por usuario** (triggers): máx **2 lives**, máx **4 marcas de agua**. Probados y funcionando.
-- **Slug único global** (trigger `ensure_unique_slug`, auto-sufijo en colisión).
-- **Storage:** bucket público `watermarks`. Escritura solo en la carpeta propia `{user_id}/...` (políticas por dueño). Lectura por URL pública (los buckets públicos sirven sin política de SELECT).
-- **RPC público** `get_public_live(p_slug)`: SECURITY DEFINER, ejecutable por `anon`; devuelve SOLO campos públicos del live + datos de overlay. Es lo que usa el viewer. (Los 2 warnings de advisors que quedan son por esta función y son **intencionales**.)
-- **Migraciones aplicadas:** `core_schema_lives_watermarks`, `storage_watermarks_bucket`, `security_hardening`.
-- **Auth:** email + contraseña. OJO: `mailer_autoconfirm = false` → los registros **requieren confirmar el correo**. Para onboarding fluido sin SMTP, desactivar "Confirm email" en el dashboard (Authentication → Sign In / Providers → Email).
+- Proyecto `iqdskgjmxfirtsncazms` · URL `https://iqdskgjmxfirtsncazms.supabase.co` (org gocas-automation).
+- Tablas `lives`, `watermarks` con RLS por dueño. Límites (triggers): 2 lives, 4 marcas. Slug único (trigger). Bucket público `watermarks` (escritura solo carpeta propia `{uid}/`).
+- La columna `lives.youtube_video_id` quedó sin uso (era del viewer); inofensiva.
+- Auth email+password. `mailer_autoconfirm=false` → los registros exigen confirmar correo. Para onboarding fluido: desactivar "Confirm email" en el dashboard (o configurar SMTP con Resend después).
+- Migraciones: `core_schema_lives_watermarks`, `storage_watermarks_bucket`, `security_hardening`, `drop_public_viewer_rpc`.
 
-## Seguridad — reglas
-
-- Nunca exponer la `service_role` key ni ponerla en el repo. La web usa solo la clave **publishable** (`NEXT_PUBLIC_SUPABASE_ANON_KEY`), que es pública por diseño y está protegida por RLS.
-- La seguridad de los datos vive en la BD (RLS + triggers + RPC de campos públicos), no en el cliente. Verificado por REST: anon ve 0 filas ajenas, límites bloquean, RPC solo público.
-
-## Variables de entorno (web)
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://iqdskgjmxfirtsncazms.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...   (pública)
-```
-Local: en `web/.env.local` (gitignored, ya creado). Producción: en Vercel → Environment Variables.
-
-## Cómo correr en local
+## Cómo correr
 
 ```bash
-cd web && npm install && npm run dev     # http://localhost:3000
+# 1) Puente (en la PC de la red de la cámara)
+cd bridge && npm install && npm start        # http://localhost:4000 (loopback)
+
+# 2) Web (local) — o usa el sitio publicado en Vercel
+cd web && npm install && npm run dev          # http://localhost:3000
 ```
-Regístrate en `/login`, sube marcas y crea transmisiones en `/panel`, comparte `/live/<slug>`.
+Flujo: registro → subir marcas → crear transmisión (marca+posición+tamaño) → en la tarjeta pegar RTSP + clave de YouTube → "Preview local" (verificar) → "Transmitir a YouTube".
 
-## Despliegue (Vercel)
+## Despliegue
 
-- Root del proyecto en Vercel = **`web/`** (monorepo: setear Root Directory).
-- Env vars: las dos `NEXT_PUBLIC_SUPABASE_*`.
-- El repo es de GOCAS: confirmar con Cesar antes de `git push` a `main`.
-- Repo destino: `github.com/GOCAS-Automations/website_GOCAS_liveStreaming`.
+- **web → Vercel:** ya publicado en `https://website-gocas-live-streaming.vercel.app` (repo `GOCAS-Automations/website_GOCAS_liveStreaming`, Root Directory `web/`, env `NEXT_PUBLIC_SUPABASE_*`). Auto-deploy en cada push a `main`.
+- **bridge → local:** el usuario lo corre en sitio. El puente permite el origen del dominio Vercel + `*.vercel.app` + localhost.
 
 ## Roadmap / pendientes
 
-- [ ] Desactivar confirmación de correo (o configurar SMTP) para onboarding fluido.
-- [ ] Métricas de audiencia (Supabase) — pedido del cliente para "después".
-- [ ] Más protocolos de cámara (iPhone/WebRTC/RTMP) — implicaría reintroducir un servicio de video (VPS), no cabe en Vercel.
-- [ ] Marca de agua incrustada real (requiere FFmpeg en VPS) — hoy es overlay CSS.
-- [ ] Dominio propio, correo de la marca, y perfeccionar SEO/share cards del viewer.
+- [ ] Probar en el club: Smash grabando + live GOCAS simultáneos, sin conflicto.
+- [ ] Empaquetar el puente para no-técnicos (instalador/exe) y, futuro, dispositivo en sitio (mini-PC) con token de auth.
+- [ ] Desactivar confirmación de correo o configurar SMTP (Resend).
+- [ ] Métricas de audiencia; más protocolos de cámara (iPhone/WebRTC/RTMP).
+- [ ] Dominio propio (live.gocas.co).
 
 ## Estado actual
 
-- 21-jul-2026: Reescritura a web-pura + Supabase. Auth (login/registro), gestión de marcas (subir/ver/renombrar/eliminar, máx 4), transmisiones por usuario (máx 2), viewer público con overlay. RLS + límites + RPC verificados por REST. Rediseño estilo Apple. Build limpio. Pendiente: subir a GitHub y desplegar en Vercel.
+- 21-jul-2026: Reintroducido el puente (RTSP→marca incrustada→YouTube) + preview HLS local, controlado desde el panel en Vercel vía localhost (CORS+PNA). Quitado el viewer público. Escala de marca hasta 100%. Sistema de toasts (éxito/error/aviso) abajo-derecha. Puente endurecido a loopback (127.0.0.1). Build limpio; pipeline FFmpeg y CORS/PNA verificados. Web ya en Vercel. Falta: prueba real con cámara del club + YouTube, y decidir confirmación de correo.

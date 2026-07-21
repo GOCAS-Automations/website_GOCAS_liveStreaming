@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Manrope, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import { ToastProvider } from '@/lib/toast';
 
 const manrope = Manrope({
   subsets: ['latin'],
@@ -28,7 +29,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es">
-      <body className={`${manrope.variable} ${mono.variable}`}>{children}</body>
+      <body className={`${manrope.variable} ${mono.variable}`}>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

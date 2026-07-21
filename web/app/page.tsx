@@ -12,24 +12,24 @@ const STEPS = [
   },
   {
     n: '02',
-    title: 'Prepara tu live en YouTube',
-    body: 'Crea la transmisión en YouTube y envía tu cámara con el encoder que uses (OBS, hardware o la app de tu cámara). Copia el enlace del video.',
+    title: 'Configura la transmisión',
+    body: 'Dale nombre y elige tu marca de agua, su posición y tamaño (hasta cubrir todo el video). Máximo 2 transmisiones por cuenta.',
   },
   {
     n: '03',
-    title: 'Crea la transmisión en GOCAS',
-    body: 'Pega el enlace de YouTube, elige tu marca de agua, posición y tamaño. Cada live nace con su propia URL: /live/tu-nombre.',
+    title: 'Abre el puente en sitio',
+    body: 'En la PC que está en la red de tu cámara, abre el puente GOCAS. Pega la URL RTSP de la cámara y la clave de retransmisión de tu YouTube Live.',
   },
   {
     n: '04',
-    title: 'Comparte tu enlace',
-    body: 'Envía tu enlace /live/… Tus espectadores ven el en vivo enmarcado con tu marca. Escala a cientos de personas sin esfuerzo.',
+    title: 'Transmite con tu marca',
+    body: 'Pulsa Transmitir: GOCAS lee tu cámara, incrusta tu marca de agua y envía la señal a YouTube en vivo. La entrega a cientos la hace YouTube.',
   },
 ];
 
 const FEATURES = [
-  { t: 'Tu marca, no la de otro', d: 'Tu logo sobre el marco de cada transmisión.' },
-  { t: 'Tu propio enlace', d: 'Cada live vive en /live/tu-nombre, listo para compartir.' },
+  { t: 'Marca de agua incrustada', d: 'Tu logo va quemado en el video: se ve en YouTube y no se puede quitar.' },
+  { t: 'Desde tu cámara RTSP', d: 'El puente en sitio lee la cámara y la lleva a tu YouTube Live.' },
   { t: 'Escala tranquila', d: 'La entrega la hace YouTube: cientos de espectadores sin sudar.' },
 ];
 
@@ -79,8 +79,8 @@ export default async function Home() {
           con tu marca.
         </h1>
         <p className="lead" style={{ maxWidth: 560, margin: '26px auto 0' }}>
-          Enmarca tu transmisión de YouTube con tu propia marca de agua y compártela en un enlace
-          que es tuyo. Simple, elegante, listo para cientos de espectadores.
+          Lleva tu cámara RTSP a YouTube en vivo con tu propia marca de agua incrustada. Sin
+          complicaciones, listo para cientos de espectadores.
         </p>
         <div className="row" style={{ marginTop: 36, justifyContent: 'center' }}>
           <Link href={authed ? '/panel' : '/login'} className="btn btn-primary">

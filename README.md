@@ -1,46 +1,55 @@
 # GOCAS Live
 
-Webapp para **enmarcar tu transmisión de YouTube con tu propia marca** y compartirla en un enlace que es tuyo (`/live/tu-nombre`). Cada usuario gestiona sus marcas de agua y sus transmisiones. Producto de **GOCAS Automations**.
+Transmite tu **cámara RTSP a YouTube Live con tu marca de agua incrustada**. Cada usuario gestiona sus marcas y sus transmisiones desde el panel; un pequeño **puente** corre en sitio (en la red de la cámara) y hace el video. Producto de **GOCAS Automations**.
 
 ## Cómo funciona
 
-Todo corre en **Vercel + Supabase** (sin servidores de video). Tú envías tu cámara a YouTube con el encoder que uses (OBS, hardware, o la app de tu cámara); GOCAS te da la **página con tu marca**, el **enlace propio** y la gestión.
-
 ```
-Cámara → (OBS / encoder) → YouTube Live → /live/<slug>  (marco GOCAS + tu marca de agua)
-Gestión (login · marcas · transmisiones) → Next.js (Vercel) ↔ Supabase (auth · datos · archivos)
+Cámara RTSP → [ puente local: FFmpeg incrusta la marca ] → YouTube Live (con tu marca quemada)
+Panel (Vercel) ── controla el puente en http://localhost:4000 ──┘
+Login · marcas · transmisiones ↔ Supabase
 ```
 
-> La marca de agua se muestra como overlay sobre el marco de tu página GOCAS. No se incrusta en el video de YouTube.
+- El **panel** (Next.js, en Vercel) es el control: login, marcas de agua, transmisiones.
+- El **puente** (Node + FFmpeg, carpeta `bridge/`) corre en una PC **en la misma red de la cámara** (las cámaras RTSP no son accesibles desde internet). Trae su propio FFmpeg; no instalas nada.
+- El live se ve **directo en YouTube** con la marca ya incrustada (no hay reproductor dentro del sitio).
 
-## Stack
+## Correr
 
-Next.js 14 · React 18 · TypeScript · Supabase (Auth · Postgres · Storage).
+**1) El puente** (en la PC de la red de la cámara):
 
-## Correr en local
+```bash
+cd bridge
+npm install
+npm start           # queda en http://localhost:4000 (solo loopback)
+```
+
+**2) El panel:** usa el sitio publicado, o localmente:
 
 ```bash
 cd web
 npm install
-npm run dev          # http://localhost:3000
+npm run dev         # http://localhost:3000
 ```
 
-Necesitas las variables de Supabase en `web/.env.local` (ver `web/.env.local.example`).
+El panel necesita las variables de Supabase (`web/.env.local`, ver `web/.env.local.example`).
 
 ## Flujo
 
-1. **Regístrate** en `/login` y entra al panel.
-2. **Sube tus marcas de agua** (hasta 4). Renómbralas, elimínalas o cámbialas cuando quieras.
-3. **Prepara tu live en YouTube** (con tu encoder) y copia el enlace del video.
-4. **Crea la transmisión** en GOCAS: pega el enlace de YouTube, elige la marca, su posición y tamaño. Máximo 2 transmisiones por cuenta.
-5. **Comparte** `/live/tu-nombre`. Tus espectadores ven el en vivo enmarcado con tu marca; la entrega la hace YouTube (escala a cientos).
+1. **Regístrate** y entra al panel.
+2. **Sube tus marcas de agua** (hasta 4).
+3. **Crea una transmisión**: nombre + marca, posición y tamaño (hasta 100% del ancho). Máx 2 por cuenta.
+4. Abre el **puente** en la PC en sitio. En la tarjeta de la transmisión pega la **URL RTSP** de la cámara y la **clave de retransmisión** de tu YouTube Live.
+5. **Preview local** para verificar, luego **Transmitir a YouTube**. Listo: tu cámara sale en vivo con tu marca.
 
 ## Seguridad
 
-Cada usuario solo ve y gestiona sus propios datos (RLS en Supabase). La web usa únicamente la clave pública (publishable); no hay secretos en el repo.
+- El puente escucha **solo en `127.0.0.1`**: nadie más en la red puede controlarlo. CORS restringido al sitio GOCAS.
+- La URL RTSP y la clave de YouTube **no se guardan**: viven en memoria mientras transmites.
+- En Supabase cada usuario solo ve y gestiona lo suyo (RLS).
 
-## Despliegue
+## Coexistencia con otras grabaciones
 
-- **Vercel:** Root Directory = `web/`. Variables `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+El puente solo **lee** el RTSP; no reconfigura la cámara. Grabar y transmitir desde la misma cámara conviven. Recomendado: usa un perfil de stream distinto (sub-stream) para el live.
 
 Detalle técnico completo en [`CLAUDE.md`](./CLAUDE.md).

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { listLives, listWatermarks, MAX_LIVES, type Live, type Watermark } from '@/lib/data';
+import { bridge, BRIDGE_URL } from '@/lib/bridge';
 import { Wordmark } from '@/components/ui';
 import WatermarkManager from '@/components/panel/WatermarkManager';
 import LiveForm from '@/components/panel/LiveForm';
@@ -18,6 +19,7 @@ export default function PanelPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Live | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [bridgeOk, setBridgeOk] = useState<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -36,6 +38,22 @@ export default function PanelPage() {
     sb.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
     refresh();
   }, [refresh]);
+
+  // Estado del puente local (¿está corriendo en la PC del usuario?)
+  useEffect(() => {
+    let active = true;
+    const check = () =>
+      bridge
+        .health()
+        .then(() => active && setBridgeOk(true))
+        .catch(() => active && setBridgeOk(false));
+    check();
+    const t = setInterval(check, 5000);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, []);
 
   async function logout() {
     const sb = createClient();
@@ -68,6 +86,13 @@ export default function PanelPage() {
         <div className="container row between" style={{ height: 66 }}>
           <Wordmark sub="panel" />
           <div className="row" style={{ gap: 10 }}>
+            <span className="badge" title={`Puente local · ${BRIDGE_URL}`}>
+              <span
+                className="dot"
+                style={{ background: bridgeOk ? '#3d4a2a' : bridgeOk === false ? '#d97a3c' : '#b8ac93' }}
+              />
+              {bridgeOk === null ? 'Puente…' : bridgeOk ? 'Puente conectado' : 'Puente apagado'}
+            </span>
             {email ? (
               <span className="mono" style={{ fontSize: 12.5, color: 'var(--muted)' }}>
                 {email}
@@ -87,6 +112,18 @@ export default function PanelPage() {
         {error ? (
           <div className="card" style={{ borderColor: 'var(--danger)', marginBottom: 24 }}>
             <p style={{ color: 'var(--danger)', fontSize: 14 }}>{error}</p>
+          </div>
+        ) : null}
+
+        {bridgeOk === false ? (
+          <div className="card" style={{ borderColor: 'var(--amber)', marginBottom: 24 }}>
+            <p style={{ fontWeight: 600, marginBottom: 4 }}>El puente no está corriendo</p>
+            <p className="muted" style={{ fontSize: 14 }}>
+              Puedes crear y editar transmisiones sin él. Para <strong>transmitir</strong> necesitas
+              abrir el puente GOCAS en la PC que está en la red de la cámara: en la carpeta{' '}
+              <span className="mono">bridge/</span> ejecuta <span className="mono">npm start</span>.
+              En cuanto esté arriba, este aviso desaparece.
+            </p>
           </div>
         ) : null}
 

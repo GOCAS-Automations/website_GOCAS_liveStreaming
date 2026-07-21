@@ -94,22 +94,7 @@ export type Database = {
       };
     };
     Views: { [_ in never]: never };
-    Functions: {
-      get_public_live: {
-        Args: { p_slug: string };
-        Returns: {
-          description: string;
-          slug: string;
-          title: string;
-          wm_margin: number;
-          wm_opacity: number;
-          wm_path: string;
-          wm_position: string;
-          wm_scale: number;
-          youtube_video_id: string;
-        }[];
-      };
-    };
+    Functions: { [_ in never]: never };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
   };
