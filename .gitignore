@@ -1,0 +1,17 @@
+# dependencias
+node_modules/
+
+# builds
+web/.next/
+web/out/
+dist/
+
+# entornos (locales; las publishable keys son públicas pero no se versionan)
+.env
+.env.local
+.env*.local
+
+# logs y sistema
+*.log
+.DS_Store
+Thumbs.db
