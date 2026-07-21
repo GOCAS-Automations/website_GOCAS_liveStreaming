@@ -64,11 +64,42 @@ export function buildFilterComplex({ position, opacity, scale, margin }) {
   );
 }
 
+// Sonda rapida: ¿el RTSP trae pista de audio? YouTube EXIGE audio; muchas camaras
+// IP no lo envian y YouTube se queda en "sin datos" sin dar error.
+export function probeHasAudio(rtspUrl) {
+  return new Promise((resolve) => {
+    const p = spawn(
+      ffmpegPath,
+      ['-hide_banner', '-rtsp_transport', 'tcp', '-i', rtspUrl, '-t', '0.1', '-f', 'null', '-'],
+      { windowsHide: true },
+    );
+    let err = '';
+    const timer = setTimeout(() => {
+      try {
+        p.kill('SIGKILL');
+      } catch {
+        /* noop */
+      }
+    }, 8000);
+    p.stderr.on('data', (d) => {
+      err += d.toString();
+    });
+    const done = () => {
+      clearTimeout(timer);
+      resolve(/Stream #\d+:\d+[^\n]*Audio:/.test(err));
+    };
+    p.on('exit', done);
+    p.on('error', done);
+  });
+}
+
 function buildArgs({ mode, id, rtspUrl, streamKey, watermarkFile, position, opacity, scale, margin, audio, videoBitrate }) {
   const vb = String(videoBitrate || '4500k');
   const silent = (audio || 'camera') === 'silent';
 
-  const args = ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-rtsp_transport', 'tcp', '-i', rtspUrl];
+  const args = ['-hide_banner', '-loglevel', 'warning', '-nostdin',
+    '-stats_period', '10', '-progress', 'pipe:2',
+    '-rtsp_transport', 'tcp', '-i', rtspUrl];
   if (watermarkFile) args.push('-i', watermarkFile);
   if (silent) args.push('-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo');
 
@@ -100,8 +131,23 @@ function buildArgs({ mode, id, rtspUrl, streamKey, watermarkFile, position, opac
   return args;
 }
 
+// Lineas de -progress (clave=valor): no van al log; guardamos lo util en session.progress
+const PROGRESS_KEYS =
+  /^(frame|fps|stream_\d+_\d+_q|bitrate|total_size|out_time_us|out_time_ms|out_time|dup_frames|drop_frames|speed|progress)=/;
+
 function pushLog(session, chunk) {
-  for (const l of String(chunk).split(/\r?\n/)) if (l.trim()) session.logTail.push(l);
+  for (const l of String(chunk).split(/\r?\n/)) {
+    const line = l.trim();
+    if (!line) continue;
+    if (PROGRESS_KEYS.test(line)) {
+      const [k, v] = line.split('=');
+      if (k === 'out_time') session.progress.outTime = v;
+      else if (k === 'bitrate') session.progress.bitrate = v;
+      else if (k === 'speed') session.progress.speed = v;
+      continue;
+    }
+    session.logTail.push(line);
+  }
   if (session.logTail.length > LOG_LINES) session.logTail.splice(0, session.logTail.length - LOG_LINES);
 }
 
@@ -160,12 +206,25 @@ export async function start(id, opts) {
     mode,
     startedAt: new Date().toISOString(),
     logTail: [],
+    progress: {},
     restarts: 0,
     manualStop: false,
     opts: fullOpts,
     proc: null,
   };
   sessions.set(id, session);
+
+  // YouTube exige pista de audio. Si el usuario pidió audio de cámara, sondeamos:
+  // si la cámara no trae audio, inyectamos silencio automáticamente.
+  if ((fullOpts.audio || 'camera') === 'camera') {
+    const hasAudio = await probeHasAudio(rtspUrl);
+    if (!hasAudio) {
+      fullOpts.audio = 'silent';
+      pushLog(session, 'La cámara no envía audio; se añade pista de silencio (YouTube la requiere).');
+    }
+  }
+  if (session.manualStop) return getStatus(id); // lo detuvieron durante la sonda
+
   spawnFfmpeg(id, fullOpts, session);
   return getStatus(id);
 }
@@ -190,13 +249,20 @@ export function stop(id) {
 export function getStatus(id) {
   const s = sessions.get(id);
   if (!s) return { status: 'idle', mode: null, logTail: [], restarts: 0 };
+  const tail = s.logTail.slice(-40);
+  // Linea sintetica de progreso: prueba visible de que los datos SÍ fluyen.
+  if (s.progress && s.progress.outTime && s.proc) {
+    tail.push(
+      `→ Enviando: ${s.progress.outTime.split('.')[0]} · ${s.progress.bitrate || '?'} · velocidad ${s.progress.speed || '?'}`,
+    );
+  }
   return {
     status: s.status,
     mode: s.mode,
     startedAt: s.startedAt,
     restarts: s.restarts,
     lastError: s.lastError || null,
-    logTail: s.logTail.slice(-40),
+    logTail: tail,
   };
 }
 
