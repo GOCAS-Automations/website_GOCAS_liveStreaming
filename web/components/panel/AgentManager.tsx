@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { createAgent, deleteAgent, agentOnline, MAX_AGENTS, type Agent } from '@/lib/data';
 import { useToast } from '@/lib/toast';
 
-const DOWNLOAD_URL = process.env.NEXT_PUBLIC_AGENT_DOWNLOAD_URL || '';
+const DOWNLOAD_URL =
+  process.env.NEXT_PUBLIC_AGENT_DOWNLOAD_URL ||
+  'https://iqdskgjmxfirtsncazms.supabase.co/storage/v1/object/public/downloads/GOCAS-Agente.zip';
 
 export default function AgentManager({ agents, onChange }: { agents: Agent[]; onChange: () => void }) {
   const toast = useToast();
@@ -159,20 +161,24 @@ export default function AgentManager({ agents, onChange }: { agents: Agent[]; on
           </div>
         </div>
       ) : (
-        <button className="btn btn-ghost btn-sm" onClick={() => setCreating(true)} disabled={atLimit}>
-          + Vincular un dispositivo
-        </button>
+        <div className="row">
+          <button className="btn btn-ghost btn-sm" onClick={() => setCreating(true)} disabled={atLimit}>
+            + Vincular un dispositivo
+          </button>
+          <a className="btn btn-quiet btn-sm" href={DOWNLOAD_URL}>
+            Descargar agente (Windows)
+          </a>
+        </div>
       )}
       {atLimit ? (
         <p className="hint" style={{ marginTop: 10 }}>
           Alcanzaste el máximo de {MAX_AGENTS} dispositivos.
         </p>
       ) : null}
-      {!DOWNLOAD_URL ? (
-        <p className="hint" style={{ marginTop: 10 }}>
-          El instalador del agente se habilita para descarga desde aquí una vez publicado.
-        </p>
-      ) : null}
+      <p className="hint" style={{ marginTop: 10 }}>
+        El agente se instala una vez en la PC que está en la red de la cámara: descomprime el ZIP,
+        doble clic en gocas-agent.exe y pega el código. Todo lo demás se controla desde aquí.
+      </p>
     </div>
   );
 }

@@ -61,6 +61,16 @@ export default function LiveCard({
       toast.warning('Pega la clave de retransmisión de YouTube.');
       return;
     }
+    if (/:\/\//.test(youtubeKey) || /^rtsp/i.test(youtubeKey.trim())) {
+      toast.error(
+        'Eso parece una URL, no la clave de YouTube. La clave es un código corto (ej. abcd-1234-…) que copias en YouTube Studio → Transmitir en vivo → "Clave de retransmisión".',
+      );
+      return;
+    }
+    if (!/^rtsps?:\/\//i.test(rtsp.trim())) {
+      toast.error('La URL de la cámara debe empezar con rtsp:// (o rtsps://).');
+      return;
+    }
     setBusy(true);
     try {
       await goLive(live.id, { agentId, rtspUrl: rtsp.trim(), youtubeKey: youtubeKey.trim() });
@@ -206,10 +216,14 @@ export default function LiveCard({
               autoComplete="off"
               spellCheck={false}
             />
+            <span className="hint">
+              NO es una URL: es el código corto de YouTube Studio → Transmitir en vivo → “Clave de
+              retransmisión”.
+            </span>
           </label>
           <p className="hint">
-            Se guardan cifradas mientras transmites y se borran al detener. El agente en tu red debe
-            estar en línea.
+            Se guardan mientras transmites y se borran al detener. El agente en tu red debe estar en
+            línea.
           </p>
         </div>
       ) : null}
