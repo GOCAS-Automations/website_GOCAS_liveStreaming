@@ -35,6 +35,16 @@ async function downloadWatermark(url, id) {
   return file;
 }
 
+function saveWatermarkData(dataUrl, id) {
+  if (!dataUrl) return null;
+  const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+  const buf = Buffer.from(b64, 'base64');
+  fs.mkdirSync(TMP_DIR, { recursive: true });
+  const file = path.join(TMP_DIR, `wm_${id}.img`);
+  fs.writeFileSync(file, buf);
+  return file;
+}
+
 export function buildFilterComplex({ position, opacity, scale, margin }) {
   const op = clamp(opacity ?? 0.85, 0, 1);
   const sc = clamp(scale ?? 0.15, 0.02, 1);
@@ -134,7 +144,9 @@ export async function start(id, opts) {
 
   stop(id); // limpia previo
 
-  const watermarkFile = await downloadWatermark(opts.watermarkUrl, id);
+  const watermarkFile = opts.watermarkData
+    ? saveWatermarkData(opts.watermarkData, id)
+    : await downloadWatermark(opts.watermarkUrl, id);
 
   if (mode === 'preview') {
     const dir = path.join(HLS_DIR, id);

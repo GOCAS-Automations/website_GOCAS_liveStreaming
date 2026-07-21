@@ -2,9 +2,10 @@ import express from 'express';
 import http from 'node:http';
 import { PORT, HLS_DIR, ALLOWED_ORIGINS, ALLOW_VERCEL_PREVIEWS } from './config.js';
 import { start, stop, getStatus, stopAll, ffmpegBinary } from './ffmpeg.js';
+import { CONSOLE_HTML } from './console.js';
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '15mb' }));
 
 // ---- CORS + Private Network Access (permite que el sitio HTTPS controle este localhost) ----
 function originAllowed(origin) {
@@ -30,6 +31,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Página de control (misma-origen, funciona en cualquier navegador/SO).
+app.get('/', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(CONSOLE_HTML);
+});
+
 app.get(['/health', '/api/health'], (_req, res) => {
   res.json({ ok: true, ffmpeg: ffmpegBinary, service: 'gocas-live-bridge', version: '0.2.0' });
 });
@@ -43,6 +50,7 @@ app.post('/api/streams/:id/start', async (req, res) => {
       rtspUrl: String(b.rtspUrl || '').trim(),
       streamKey: String(b.streamKey || '').trim(),
       watermarkUrl: b.watermarkUrl ? String(b.watermarkUrl) : null,
+      watermarkData: b.watermarkData || null,
       position: b.position,
       opacity: b.opacity,
       scale: b.scale,
