@@ -2,82 +2,76 @@
 
 Memoria del proyecto. Léelo al inicio de cada sesión. Producto de GOCAS Automations. Ver el CLAUDE.md raíz de `GOCAS/` para el negocio y la marca.
 
+## Regla de trabajo (obligatoria)
+
+**Fable (modelo principal) SOLO planifica, orquesta y revisa.** Toda ejecución (escribir/editar código, correr comandos, builds, pruebas, commits) la realizan subagentes: **opus** para tareas complejas (motor de video, arquitectura, debugging difícil) y **sonnet** para tareas mecánicas (scaffolding, docs, builds, commits). Fable solo toca directamente archivos de gobernanza (este CLAUDE.md, memoria).
+
 ## Qué es
 
-SaaS multi-usuario para transmitir una **cámara RTSP a YouTube Live con marca de agua incrustada**. Cualquier usuario se registra y **controla TODO desde el sitio web**; un **agente** instalado en la PC de la red de la cámara hace el trabajo de video.
+**App de escritorio** (Electron, Windows primero → macOS después) para transmitir una **cámara RTSP a YouTube Live con marca de agua incrustada**. Sin usuarios, sin nube: cada equipo guarda sus transmisiones y marcas localmente. Estilo iPhone/iOS moderno-minimalista con paleta GOCAS.
 
-## Arquitectura FINAL: "agente + nube" (decisión firme 21-jul-2026)
+Historia: fue webapp (Vercel+Supabase) con agente remoto; el 22-jul-2026 Cesar pivotó a app de escritorio y **borró los proyectos de Vercel y Supabase** (ya no existen). El repo GitHub `GOCAS-Automations/website_GOCAS_liveStreaming` se conserva como repo del proyecto.
 
-Iteraciones descartadas: reproductor propio → web pura sin puente → puente localhost controlado desde el sitio (falló: el navegador bloquea HTTPS→localhost por PNA/mixed-content, y un .exe no sirve para Mac). Modelo actual:
+## Reglas de producto (decisiones firmes)
 
-```
-Sitio (Vercel) --"Transmitir"--> Supabase (desired_state='live' + secretos)
-                                     ▲            │
-   Agente en la red de la cámara ───┘ (cada 3s pregunta a la Edge Function agent-sync)
-   ejecuta FFmpeg: RTSP → marca incrustada → YouTube ; reporta estado de vuelta
-```
+- **Logo GOCAS SIEMPRE incrustado** en todo live: `assets/gocas-watermark.png`, 10% del ancho, opacidad 0.75, abajo-izquierda, margen 16px. La UI lo avisa. La marca del usuario es adicional y configurable.
+- **"En vivo" solo se declara con confirmación real**: sonda de cámara OK → FFmpeg corriendo → datos fluyendo a YouTube → 8s de flujo sostenido. Cada fallo marca su paso en el timeline (Cámara → Procesador → YouTube → En vivo) con mensaje amigable en español (`classifyError`).
+- **Sonda RTSP previa obligatoria** (`probeCamera`): IP sin RTSP, credenciales malas, ruta inexistente o timeout se detectan ANTES de transmitir, con mensaje claro. También detecta si la cámara trae audio; si no, se **inyecta silencio** (YouTube lo exige — causa clásica del "no data").
+- **Preview local HLS** con las marcas incrustadas antes de salir en vivo.
+- **Fallo rápido**: si nunca llegaron datos, no se reintenta (error inmediato). Si el stream cayó a mitad, hasta 4 reintentos con backoff.
+- Clave de YouTube y URL RTSP se guardan **localmente** en el equipo (JSON en userData) — decisión consciente, es una app local tipo OBS.
 
-- **El agente solo se conecta HACIA AFUERA** (a Supabase). No abre servidor, no recibe conexiones, no usa localhost → funciona en cualquier red y SO.
-- **Todo se controla desde el sitio.** El usuario instala el agente una vez, lo vincula con un token, y se olvida.
-- No hay viewer en el sitio: el live se ve en YouTube con la marca ya incrustada.
+## Red / caso de uso clave (respuestas validadas)
+
+- **Transmitir con internet del celular**: PC con 2 conexiones — ethernet a la red de la cámara (RTSP es tráfico local, no gasta internet) + WiFi al hotspot (por ahí sale el RTMP a YouTube). Windows enruta solo; si la red local también tiene internet puede requerir ajustar métrica/gateway. Documentado en la pestaña Ayuda de la app.
+- Cámara WiFi + PC en el mismo hotspot también funciona (ojo: algunos hotspots aíslan clientes entre sí).
+- Coexistencia con Smash Vision: RTSP es lectura pull, conviven; usar sub-stream para el live.
 
 ## Estructura
 
 ```
 liveStreaming_Software/
 ├── CLAUDE.md · README.md · .gitignore
-├── web/  (Next.js → Vercel)
-│   ├── middleware.ts  (sesión + protege /panel)
-│   ├── app/  page.tsx (landing+manual) · login/ · panel/ · layout · globals.css · icon.png
-│   ├── components/ ui.tsx · panel/{AgentManager,WatermarkManager,LiveForm,LiveCard}.tsx
-│   └── lib/ supabase/{client,server,middleware} · data.ts · toast.tsx · format.ts · tokens.ts · database.types.ts
-└── bridge/  (el AGENTE — Node+FFmpeg, se empaqueta a .exe)
-    ├── src/ agent.js (poller headless) · ffmpeg.js (motor) · config.js
-    ├── package.json  (scripts: start, dev, bundle, build:exe)
-    └── release/  (gitignored: gocas-agent.exe + ffmpeg.exe + GOCAS-Agente.zip)
+└── app/                        (Electron; CommonJS, sin frameworks en renderer)
+    ├── package.json            (electron 37 · electron-builder 25 · ffmpeg-static · hls.js; scripts: start, dist)
+    ├── src/
+    │   ├── main.js             (ventana 1140x780 crema, IPC completo, assets via isPackaged→resourcesPath)
+    │   ├── preload.js          (contextBridge → window.gocas)
+    │   ├── engine.js           (motor: probeCamera, classifyError ES, filter doble marca, progreso -progress pipe:2, confirmación live 8s, reintentos)
+    │   ├── store.js            (JSON en userData: lives + watermarks; archivos de marca en userData/watermarks)
+    │   └── server.js           (mini HTTP 127.0.0.1:aleatorio para /hls y /wm — solo loopback)
+    ├── renderer/               (index.html + styles.css + app.js + vendor/hls.min.js)
+    └── assets/                 (icon.png, gocas-watermark.png, logos svg)
 ```
 
-## Supabase (proyecto `iqdskgjmxfirtsncazms`)
+## Detalles técnicos que cuestan descubrir
 
-- URL `https://iqdskgjmxfirtsncazms.supabase.co` (org gocas-automation).
-- **Tablas** (RLS por dueño): `watermarks`, `agents`, `lives`. Límites por trigger: 2 lives, 4 marcas, 3 agentes. Bucket público `watermarks` (escritura solo carpeta propia).
-- **`agents`**: id, user_id, name, token_hash (sha256 del token de dispositivo), last_seen_at.
-- **`lives`** (control remoto): agent_id, desired_state ('idle'|'live'), current_state, status_error, log_tail, y los SECRETOS `rtsp_url` + `youtube_key` (se llenan al transmitir y **se borran al detener**).
-- **Edge Function `agent-sync`** (verify_jwt=false; auth propia: valida token_hash con service role): recibe {token, report[]}, actualiza estado/heartbeat, devuelve las transmisiones con desired_state='live' de ese agente (con secretos + URL pública de la marca). Migraciones: core_schema, storage_watermarks, security_hardening, drop_public_viewer_rpc, agents_and_remote_control.
-- **Auth** email+password, `mailer_autoconfirm=false`. Configurar Site URL = dominio Vercel (Authentication → URL Configuration) para que los correos de confirmación no vayan a localhost.
+- `ffmpeg-static` empaquetado: `asarUnpack` en build config + reemplazo `app.asar`→`app.asar.unpacked` en engine.js. Assets para FFmpeg (logo GOCAS) van por `extraResources` → `process.resourcesPath/assets` cuando `app.isPackaged`.
+- En este entorno de desarrollo la env `ELECTRON_RUN_AS_NODE=1` puede estar seteada y rompe `electron .` — limpiarla antes de lanzar o compilar.
+- El renderer corre en file:// y consume HLS/imágenes de `http://127.0.0.1:<puerto aleatorio>` (mini servidor, solo loopback).
+- pkg/esbuild ya NO se usan (eran del agente anterior); electron-builder hace todo.
+- El instalador NSIS un-clic sale en `app/dist/GOCAS-Live-Setup-<version>.exe` (~110 MB). Sin firma de código → SmartScreen avisa ("Más información → Ejecutar de todas formas").
 
-## El agente (`bridge/`)
-
-- `src/agent.js`: sin servidor HTTP. Resuelve el token (env AGENT_TOKEN → archivo `~/.gocas-live-agent` → pregunta por consola la 1ª vez y lo guarda). Loop cada 3s: reporta estados + recibe desired → reconcilia FFmpeg (start/stop) → repite.
-- Empaquetado: `npm run build:exe` = esbuild (bundle CJS, evita el problema ESM de pkg) → pkg node22-win-x64 → `release/gocas-agent.exe`; copia el ffmpeg de `ffmpeg-static` a `release/ffmpeg.exe` (el agente lo busca junto al ejecutable vía `process.pkg`). Para Mac: mismo código, target macos de pkg + ffmpeg de Mac + nota de Gatekeeper (pendiente).
-- La clave anon (pública) va embebida en agent.js para pasar el gateway de funciones.
-
-## Seguridad
-
-- Secretos (RTSP con clave, clave YouTube) protegidos por RLS y **borrados al detener**. Es un producto tipo Restream. PENDIENTE: cifrado extremo-a-extremo antes de clientes externos.
-- La web usa solo la clave publishable (pública). La service_role vive solo en la Edge Function (inyectada por Supabase).
-- Coexistencia con Smash Vision: RTSP es lectura pull; el agente solo lee. Usar sub-stream distinto para el live.
-
-## Cómo correr / probar
+## Cómo correr / construir
 
 ```bash
-cd web && npm install && npm run dev          # panel local
-cd bridge && npm install && npm start          # agente (pide token o usa AGENT_TOKEN)
+cd app && npm install
+npm start        # desarrollo (ventana Electron)
+npm run dist     # instalador NSIS en app/dist/
 ```
-Flujo: registro → Dispositivos: crear agente (copiar token) → abrir agente, pegar token → Marcas: subir logo → Transmisiones: crear → pegar RTSP + clave YouTube + elegir dispositivo → Transmitir.
 
-## Despliegue
+## Distribución
 
-- **web → Vercel** (ya en `https://website-gocas-live-streaming.vercel.app`, repo `GOCAS-Automations/website_GOCAS_liveStreaming`, Root=web/, auto-deploy en push a main). Env: `NEXT_PUBLIC_SUPABASE_*` y opcional `NEXT_PUBLIC_AGENT_DOWNLOAD_URL` (URL del instalador).
-- **agente → usuario**: descarga `GOCAS-Agente.zip` y lo corre. Falta hospedar el ZIP (Supabase Storage / GitHub Releases) y setear la env de descarga.
+- **GitHub Releases** del repo `GOCAS-Automations/website_GOCAS_liveStreaming`: tag `v<version>`, asset `GOCAS-Live-Setup-<version>.exe`. El usuario descarga, doble clic, listo.
+- macOS: mismo código, `electron-builder --mac` (requiere construir en Mac o CI; pendiente cuando haya usuario Mac). **iOS (iPhone) NO es esto** — sería una app móvil aparte.
 
 ## Roadmap / pendientes
 
-- [ ] Hospedar el instalador del agente y setear `NEXT_PUBLIC_AGENT_DOWNLOAD_URL`.
-- [ ] Probar en el club con cámara real (+ que Smash Vision grabe en paralelo sin conflicto).
-- [ ] Binario del agente para Mac (y auto-arranque / instalar como servicio).
-- [ ] Cifrado E2E de secretos; métricas de audiencia; más protocolos (iPhone/WebRTC).
+- [ ] Prueba real en el club (cámara + hotspot + Smash Vision en paralelo).
+- [ ] Auto-update (electron-updater + GitHub Releases).
+- [ ] Build macOS. Firma de código (elimina aviso SmartScreen) cuando haya presupuesto.
+- [ ] Indicador de red en la app (por qué interfaz sale el live) — idea para reforzar el caso hotspot.
 
 ## Estado actual
 
-- 21-jul-2026: Arquitectura agente+nube construida y **validada end-to-end** (arrancar/detener desde la nube con reporte de estado). Build web limpio; `agent-sync` desplegada; agente .exe probado (conecta a la nube, maneja token). Landing/panel actualizados (Dispositivos + control remoto). Pendiente: hospedar instalador + prueba con cámara real.
+- 22-jul-2026: **Pivot a app de escritorio completado.** App Electron construida por agentes (opus: motor+main+UI; sonnet: scaffold+build): sonda RTSP con errores amigables, preview HLS, confirmación real de En vivo, doble marca (usuario + GOCAS forzada, validada visualmente), toasts, pestaña Ayuda con guía de hotspot. Instalador NSIS 110 MB generado. Pendiente: commit+push+release en GitHub, y prueba con cámara real.

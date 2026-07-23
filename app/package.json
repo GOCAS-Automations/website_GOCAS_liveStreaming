@@ -1,0 +1,35 @@
+{
+  "name": "gocas-live",
+  "productName": "GOCAS Live",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Transmite tu camara RTSP a YouTube Live con tu marca de agua incrustada.",
+  "main": "src/main.js",
+  "author": "GOCAS Automations",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0"
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^25.1.8",
+    "hls.js": "^1.5.20"
+  },
+  "build": {
+    "appId": "co.gocas.live",
+    "productName": "GOCAS Live",
+    "files": ["src/**/*", "renderer/**/*", "assets/**/*"],
+    "asarUnpack": ["node_modules/ffmpeg-static/**"],
+    "extraResources": [{ "from": "assets", "to": "assets" }],
+    "win": { "target": "nsis", "icon": "assets/icon.png" },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "artifactName": "GOCAS-Live-Setup-${version}.exe"
+    }
+  }
+}

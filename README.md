@@ -1,39 +1,34 @@
 # GOCAS Live
 
-Transmite tu **cámara RTSP a YouTube Live con tu marca de agua incrustada**, controlando **todo desde el sitio web**. Un pequeño **agente** que instalas una vez en la red de tu cámara hace el trabajo. Producto de **GOCAS Automations**.
+App de escritorio para transmitir tu **cámara RTSP a YouTube Live con tu marca de agua incrustada**. Sin cuentas, sin configuración de servidores: instalas, pegas la URL de tu cámara y la clave de YouTube, y sales en vivo. Producto de **GOCAS Automations**.
 
-## Cómo funciona
+## Descarga
 
-```
-Sitio web (Vercel) ── "Transmitir" ──► Supabase ◄── el agente pregunta cada 3s
-                                                     y ejecuta FFmpeg → YouTube
-```
+Enlace a [Releases](https://github.com/GOCAS-Automations/website_GOCAS_liveStreaming/releases/latest) → descarga `GOCAS-Live-Setup-*.exe` → doble clic.
 
-- El **sitio** (Next.js) es el control total: login, marcas, dispositivos, transmisiones.
-- El **agente** (`bridge/`, Node + FFmpeg empaquetado en .exe) se instala en la PC de la red de la cámara. Se conecta **solo hacia afuera**: no abre puertos, no usa localhost, funciona en cualquier red y SO. Trae su propio FFmpeg.
-- El live se ve en **YouTube** con la marca ya incrustada.
+> **Nota SmartScreen:** Windows puede mostrar un aviso porque la app no tiene firma de código (normal). Elige **"Más información" → "Ejecutar de todas formas"**.
 
-## Flujo para el usuario
+## Qué hace
 
-1. **Regístrate** y sube tu marca de agua (hasta 4).
-2. **Dispositivos → Vincular un dispositivo:** el sitio te da un código.
-3. **Instala el agente** en la PC de la red de la cámara (descomprime, doble clic) y pega el código la primera vez.
-4. **Crea una transmisión** (nombre + marca).
-5. **Transmitir:** elige el dispositivo, pega la URL RTSP y la clave de tu YouTube Live, y un clic. Tu cámara sale en vivo con tu marca. Detienes desde el sitio.
+- Sonda de cámara con diagnóstico claro (te avisa si esa IP no tiene RTSP, credenciales malas, etc.).
+- Preview local con las marcas antes de salir en vivo.
+- "En vivo" solo se confirma cuando YouTube está recibiendo datos de forma estable.
+- Marcas de agua propias (posición, tamaño, opacidad).
+- Todos los lives llevan el logo GOCAS (pequeño, 75% opacidad, abajo-izquierda).
+- Si la cámara no trae audio, se añade silencio automáticamente (YouTube lo exige).
 
-## Correr en desarrollo
+## Transmitir con el internet del celular
+
+PC por ethernet a la red de la cámara + WiFi al hotspot del celular: leer la cámara es tráfico local y el live sale por el hotspot.
+
+## Desarrollo
 
 ```bash
-cd web && npm install && npm run dev       # panel (necesita web/.env.local con las claves de Supabase)
-cd bridge && npm install && npm start       # agente (pide el token, o usa AGENT_TOKEN=...)
+cd app && npm install && npm start
 ```
 
-Empaquetar el agente a .exe: `cd bridge && npm run build:exe` → `release/gocas-agent.exe` (+ `ffmpeg.exe`).
+Instalador: `npm run dist` → `app/dist/`.
 
-## Seguridad
+## Nota técnica
 
-- Cada usuario solo ve y controla lo suyo (RLS en Supabase).
-- La URL RTSP y la clave de YouTube se guardan mientras transmites y **se borran al detener**.
-- El sitio usa solo la clave pública; la clave secreta vive solo en la función de la nube.
-
-Detalle técnico completo en [`CLAUDE.md`](./CLAUDE.md).
+Electron + FFmpeg (`ffmpeg-static`). Datos locales en el equipo. Detalle completo en [`CLAUDE.md`](./CLAUDE.md).

@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- index.html · Interfaz (renderer) de GOCAS Live. Se carga con loadFile (file://)
+     y consume HLS/imágenes desde http://127.0.0.1:<port> vía la API window.gocas. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GOCAS Live</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Encabezado glass, sticky -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="wordmark"><span class="bk">[</span>&nbsp;GOCAS&nbsp;<span class="bk">]</span></span>
+      <span class="word-sub">live</span>
+    </div>
+    <span id="version" class="version mono"></span>
+  </header>
+
+  <!-- Segmented control (pestañas estilo iOS) -->
+  <div class="segwrap">
+    <div id="seg" class="seg" role="tablist" data-active="0">
+      <span class="seg-thumb"></span>
+      <button class="seg-btn is-active" data-tab="lives" role="tab">Transmisiones</button>
+      <button class="seg-btn" data-tab="wm" role="tab">Marcas de agua</button>
+      <button class="seg-btn" data-tab="help" role="tab">Ayuda</button>
+    </div>
+  </div>
+
+  <!-- Contenido según pestaña -->
+  <main id="view" class="view"></main>
+
+  <!-- Contenedores globales -->
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="sheet-root"></div>
+
+  <!-- hls.js (vendorizado) debe cargar antes que app.js -->
+  <script src="vendor/hls.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
