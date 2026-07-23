@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GOCAS Live · Salir en vivo en YouTube</title>
+<style>
+  :root{
+    --oliva:#3d4a2a;
+    --ambar:#d97a3c;
+    --crema:#f5f1e8;
+    --tinta:#23301a;
+    --oliva-suave:#6b7553;
+    --linea: rgba(35,48,26,.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--crema);
+    color: var(--tinta);
+    line-height:1.6;
+    font-size:15.5px;
+  }
+  .page{ max-width: 760px; margin: 0 auto; padding: 48px 40px 64px; }
+  .wordmark{ display:inline-flex; align-items:center; gap:.5rem; font-weight:800; font-size:1rem; letter-spacing:.03em; color: var(--oliva); margin-bottom: 2.2rem; }
+  .wordmark .bk{ color: var(--ambar); }
+  .wordmark .sub{ font-weight:600; color: var(--oliva-suave); text-transform:lowercase; letter-spacing:.02em; font-size:.85rem; border-left: 1px solid var(--linea); padding-left:.5rem; margin-left:.1rem; }
+  .kicker{ font-size:.78rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ambar); margin: 0 0 .5rem; }
+  h1{ font-size:2rem; line-height:1.15; color: var(--oliva); margin: 0 0 .5rem; letter-spacing:-.01em; }
+  .subtitle{ font-size:1.05rem; color: var(--tinta); opacity:.8; margin: 0 0 2.4rem; max-width: 58ch; }
+  h2{ font-size:1.25rem; color: var(--oliva); margin: 2.4rem 0 .9rem; padding-bottom:.5rem; border-bottom: 2px solid var(--oliva); display:flex; align-items:baseline; gap:.55rem; }
+  h2 .num{ color: var(--ambar); font-weight:800; }
+  h3{ font-size:1.02rem; color: var(--oliva); margin: 1.4rem 0 .5rem; }
+  p{ margin: 0 0 .9rem; }
+  strong{ color: var(--oliva); }
+  code, .mono{ font-family: ui-monospace, "Cascadia Code", Consolas, monospace; background: #fff; border: 1px solid var(--linea); border-radius: 4px; padding: .1rem .4rem; font-size: .92em; color: var(--tinta); word-break: break-all; }
+  ol.steps{ margin: 0 0 1rem; padding: 0; list-style: none; counter-reset: step; }
+  ol.steps > li{ counter-increment: step; position: relative; margin: 0 0 .85rem; padding: 0 0 0 2.5rem; min-height: 1.7rem; }
+  ol.steps > li::before{ content: counter(step); position: absolute; left: 0; top: 0; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--oliva); color: #fff; font-weight:700; font-size:.85rem; display:flex; align-items:center; justify-content:center; }
+  ul.list{ margin:0 0 1rem; padding-left: 1.3rem; }
+  ul.list li{ margin-bottom:.4rem; }
+  table{ width:100%; border-collapse: collapse; margin: 0 0 1.2rem; font-size:.92rem; }
+  th, td{ text-align:left; padding:.55rem .6rem; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  th{ color: var(--oliva); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+  .box{ border-radius: 10px; padding: 1rem 1.2rem; margin: 0 0 1.2rem; break-inside: avoid; }
+  .tip{ background: #fff; border: 1px solid var(--linea); }
+  .tip .box-title{ color: var(--oliva); }
+  .warn{ background: #fff; border: 1px solid var(--linea); border-left: 4px solid var(--ambar); }
+  .warn .box-title{ color: var(--ambar); }
+  .box-title{ font-weight:800; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin: 0 0 .4rem; }
+  .box p:last-child{ margin-bottom:0; }
+  .msg{ display:block; font-family: ui-monospace, Consolas, monospace; font-size:.86rem; background:#fff; border:1px solid var(--linea); border-left: 3px solid var(--oliva-suave); border-radius:6px; padding:.5rem .7rem; margin:.35rem 0; }
+  .msg.err{ border-left-color: var(--ambar); }
+  .chips{ display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 1rem; }
+  .chip{ display:inline-block; padding:.28rem .7rem; border-radius:999px; font-size:.82rem; font-weight:600; background:#fff; border:1px solid var(--linea); }
+  footer{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--linea); font-size:.8rem; color: var(--oliva-suave); display:flex; justify-content:space-between; }
+  @media print{
+    body{ background:#fff; font-size: 12.5px; }
+    .page{ max-width:none; padding:0; margin:0; }
+    @page{ size:A4; margin: 16mm 15mm; }
+    h2{ break-after: avoid; }
+    .box, table, ol.steps > li{ break-inside: avoid; }
+    a{ color: inherit; text-decoration:none; }
+  }
+  .timeline-demo{ display:flex; gap:0; margin: 0 0 1.2rem; }
+  .td-step{ flex:1; text-align:center; position:relative; }
+  .td-step:not(:last-child)::after{ content:''; position:absolute; top:13px; left:50%; width:100%; height:2px; background:var(--linea); z-index:0; }
+  .td-dot{ width:26px; height:26px; border-radius:50%; background:#fff; border:2px solid var(--linea); color:var(--oliva-suave); display:flex; align-items:center; justify-content:center; margin:0 auto 6px; position:relative; z-index:1; font-size:.8rem; font-weight:700; }
+  .td-dot.ok{ background:var(--oliva); border-color:var(--oliva); color:#fff; }
+  .td-label{ font-size:.78rem; color:var(--tinta); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="wordmark"><span class="bk">[</span>&nbsp;GOCAS&nbsp;<span class="bk">]</span><span class="sub">live</span></div>
+
+  <p class="kicker">Manual 4 de 5</p>
+  <h1>Salir en vivo en YouTube</h1>
+  <p class="subtitle">Consigue tu clave de retransmisión en YouTube Studio, haz una prueba con Preview y sal al aire leyendo el avance de la transmisión.</p>
+
+  <h2><span class="num">1.</span> Requisitos antes de empezar</h2>
+  <p>Necesitas un canal de YouTube <strong>habilitado para hacer transmisiones en vivo</strong>. Si nunca has transmitido en vivo desde ese canal, YouTube pide verificar tu cuenta (normalmente con tu número de celular) y <strong>la primera activación puede tardar hasta 24 horas</strong> en quedar lista.</p>
+
+  <div class="box warn">
+    <p class="box-title">Atención</p>
+    <p>Haz esta verificación con anticipación. Si tu evento es mañana y todavía no has activado nunca los directos en ese canal de YouTube, hazlo hoy mismo — no lo dejes para el día del evento, porque puede que YouTube todavía no te deje transmitir a tiempo.</p>
+  </div>
+
+  <h2><span class="num">2.</span> Crear la transmisión en la app</h2>
+  <ol class="steps">
+    <li>En la pestaña <strong>Transmisiones</strong>, haz clic en <strong>"+ Nueva transmisión"</strong>.</li>
+    <li>Escribe un <strong>Título</strong> para identificarla (por ejemplo, "Cancha central").</li>
+    <li>Pega la <strong>URL RTSP</strong> de tu cámara y haz clic en <strong>"Probar"</strong> para confirmar que conecta (ver manual 3).</li>
+    <li>Elige tu <strong>marca de agua</strong> y ajusta su posición si quieres (ver manual 2).</li>
+    <li>Por ahora puedes dejar la <strong>Clave de YouTube</strong> vacía; la vas a completar en el siguiente paso.</li>
+    <li>Haz clic en <strong>"Guardar"</strong>.</li>
+  </ol>
+
+  <h2><span class="num">3.</span> Obtener la clave en YouTube Studio</h2>
+  <ol class="steps">
+    <li>En tu navegador, entra a <strong>YouTube Studio</strong> (o haz clic en el ícono de cámara con un signo "+" arriba a la derecha de YouTube y elige "Transmitir en directo").</li>
+    <li>Haz clic en <strong>Crear</strong> y luego en <strong>"Emitir en vivo"</strong>.</li>
+    <li>YouTube abre el panel para configurar tu transmisión en vivo. Completa el título y la privacidad si te lo pide.</li>
+    <li>Busca la sección con el nombre <strong>"Clave de retransmisión"</strong> (a veces aparece como "Stream key"). Haz clic en el ícono para mostrarla y luego en "Copiar".</li>
+  </ol>
+
+  <div class="box warn">
+    <p class="box-title">Atención</p>
+    <p>La "Clave de retransmisión" es un código corto, con letras, números y guiones (algo como <code>xxxx-xxxx-xxxx-xxxx</code>). <strong>No es una URL</strong> (no empieza con <code>http</code> ni <code>rtsp</code>) y <strong>no es el enlace para ver el video</strong>. Es información privada: no la compartas con nadie, cualquiera que la tenga puede transmitir en tu canal.</p>
+  </div>
+
+  <h2><span class="num">4.</span> Pegar la clave en la app</h2>
+  <ol class="steps">
+    <li>En la pestaña <strong>Transmisiones</strong>, haz clic en <strong>"Editar"</strong> sobre la transmisión que creaste.</li>
+    <li>Pega el código en el campo <strong>"Clave de YouTube"</strong>.</li>
+    <li>Haz clic en <strong>"Guardar"</strong>.</li>
+  </ol>
+  <p>La clave se guarda solo en este computador; no se comparte ni se sube a ningún lado.</p>
+
+  <h2><span class="num">5.</span> Haz un Preview primero</h2>
+  <p>Antes de salir en vivo de verdad, siempre haz una prueba con el botón <strong>"Preview"</strong> de la tarjeta. Esto muestra dentro de la misma app cómo se va a ver tu transmisión, sin todavía enviar nada a YouTube. Revisa tres cosas:</p>
+  <ul class="list">
+    <li>Que la <strong>imagen</strong> de la cámara se vea clara y en el ángulo correcto.</li>
+    <li>Que tu <strong>marca de agua</strong> y el logo GOCAS estén en la posición y tamaño que esperabas.</li>
+    <li>Que el <strong>movimiento</strong> se vea fluido, sin cortes ni congelamientos.</li>
+  </ul>
+  <p>Si todo se ve bien, haz clic en el botón <strong>"Todo se ve bien → Transmitir a YouTube"</strong> que aparece debajo del preview. Si algo no te convence, detén el preview, corrige (posición de la cámara, marca de agua, etc.) y vuelve a probar.</p>
+
+  <h2><span class="num">6.</span> Transmitir y leer el avance</h2>
+  <p>Al transmitir, la tarjeta muestra una línea de cuatro pasos que se van completando en orden:</p>
+  <div class="timeline-demo">
+    <div class="td-step"><div class="td-dot ok">✓</div><div class="td-label">Cámara</div></div>
+    <div class="td-step"><div class="td-dot ok">✓</div><div class="td-label">Procesador</div></div>
+    <div class="td-step"><div class="td-dot ok">✓</div><div class="td-label">YouTube</div></div>
+    <div class="td-step"><div class="td-dot">4</div><div class="td-label">En vivo</div></div>
+  </div>
+  <table>
+    <tr><th>Paso</th><th>Qué significa</th></tr>
+    <tr><td><strong>Cámara</strong></td><td>La app se conectó a tu cámara y está leyendo la señal correctamente.</td></tr>
+    <tr><td><strong>Procesador</strong></td><td>El motor de video de la app arrancó y está armando la imagen final con tus marcas de agua.</td></tr>
+    <tr><td><strong>YouTube</strong></td><td>Se estableció la conexión con los servidores de YouTube y ya se está enviando video.</td></tr>
+    <tr><td><strong>En vivo</strong></td><td>YouTube confirmó que está recibiendo la señal de forma estable durante varios segundos seguidos. Este paso es el último en aparecer a propósito: así te aseguras de que el directo ya es sólido antes de avisarle a tu público.</td></tr>
+  </table>
+  <p>Debajo del avance vas a ver el chip de estado de la tarjeta, que puede decir: <strong>Detenido</strong>, <strong>Probando</strong>, <strong>Iniciando</strong>, <strong>Enviando</strong>, <strong>EN VIVO</strong>, <strong>Reconectando</strong> o <strong>Error</strong>. También aparece un renglón con el tiempo transmitido y la velocidad de envío mientras todo va bien.</p>
+
+  <h2><span class="num">7.</span> Avisos durante la transmisión</h2>
+  <p>La app vigila la transmisión todo el tiempo y te avisa si algo cambia:</p>
+  <ul class="list">
+    <li><strong>Se cae la señal:</strong> el chip cambia a "Reconectando" y aparece el mensaje "Se interrumpió la señal; reconectando…". La app reintenta sola, hasta 30 veces, esperando cada vez un poco más entre intento e intento. Si logra reconectar y se mantiene estable un minuto, el contador de intentos se reinicia solo.</li>
+    <li><strong>YouTube termina la transmisión:</strong> si tú (u otra persona) terminas el directo desde YouTube Studio, o si el evento vence, la app lo detecta y muestra: "YouTube finalizó la transmisión (¿la terminaste en YouTube Studio, o el evento venció?). Si fue un corte, pulsa Transmitir de nuevo."</li>
+  </ul>
+
+  <h2><span class="num">8.</span> Detener la transmisión</h2>
+  <p>Cuando termines, haz clic en el botón <strong>"Detener"</strong> de la tarjeta. La transmisión se corta de inmediato tanto en la app como en YouTube.</p>
+
+  <h2><span class="num">9.</span> Problemas comunes</h2>
+  <div class="msg err">"No se pudo conectar con YouTube. Revisa tu internet y que la clave de retransmisión sea válida."</div>
+  <p>Casi siempre es porque la <strong>clave venció o fue regenerada</strong> en YouTube Studio (esto pasa, por ejemplo, si creaste un directo nuevo). Copia la clave actual y actualízala en "Editar".</p>
+
+  <div class="msg err">"La transmisión se cayó y no se pudo recuperar tras varios intentos. Revisa la cámara y tu internet."</div>
+  <p>El internet estuvo mal por mucho tiempo seguido (más de los 30 intentos de reconexión). Revisa tu conexión y vuelve a darle a "Transmitir".</p>
+
+  <div class="box tip">
+    <p class="box-title">Consejo</p>
+    <p>Si tu cámara no tiene micrófono o no envía audio, no te preocupes: la app lo detecta sola y agrega una pista de silencio, porque YouTube exige que todo directo tenga audio (aunque sea silencio). No tienes que hacer nada.</p>
+  </div>
+
+  <footer>
+    <span>GOCAS Live — Manual 4 de 5</span>
+    <span>GOCAS Automations</span>
+  </footer>
+
+</div>
+</body>
+</html>

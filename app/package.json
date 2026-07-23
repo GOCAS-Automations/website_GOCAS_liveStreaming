@@ -8,6 +8,7 @@
   "author": "GOCAS Automations",
   "scripts": {
     "start": "electron .",
+    "manuals": "electron scripts/build-manuals.js",
     "dist": "electron-builder --win nsis"
   },
   "dependencies": {
@@ -23,10 +24,14 @@
     "productName": "GOCAS Live",
     "files": ["src/**/*", "renderer/**/*", "assets/**/*"],
     "asarUnpack": ["node_modules/ffmpeg-static/**"],
-    "extraResources": [{ "from": "assets", "to": "assets" }],
+    "extraResources": [
+      { "from": "assets", "to": "assets" },
+      { "from": "manuales", "to": "manuales" }
+    ],
     "win": { "target": "nsis", "icon": "assets/icon.png" },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "runAfterFinish": true,
       "artifactName": "GOCAS-Live-Setup-${version}.exe"

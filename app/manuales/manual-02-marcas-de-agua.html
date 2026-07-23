@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GOCAS Live · Marcas de agua</title>
+<style>
+  :root{
+    --oliva:#3d4a2a;
+    --ambar:#d97a3c;
+    --crema:#f5f1e8;
+    --tinta:#23301a;
+    --oliva-suave:#6b7553;
+    --linea: rgba(35,48,26,.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--crema);
+    color: var(--tinta);
+    line-height:1.6;
+    font-size:15.5px;
+  }
+  .page{ max-width: 760px; margin: 0 auto; padding: 48px 40px 64px; }
+  .wordmark{ display:inline-flex; align-items:center; gap:.5rem; font-weight:800; font-size:1rem; letter-spacing:.03em; color: var(--oliva); margin-bottom: 2.2rem; }
+  .wordmark .bk{ color: var(--ambar); }
+  .wordmark .sub{ font-weight:600; color: var(--oliva-suave); text-transform:lowercase; letter-spacing:.02em; font-size:.85rem; border-left: 1px solid var(--linea); padding-left:.5rem; margin-left:.1rem; }
+  .kicker{ font-size:.78rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ambar); margin: 0 0 .5rem; }
+  h1{ font-size:2rem; line-height:1.15; color: var(--oliva); margin: 0 0 .5rem; letter-spacing:-.01em; }
+  .subtitle{ font-size:1.05rem; color: var(--tinta); opacity:.8; margin: 0 0 2.4rem; max-width: 58ch; }
+  h2{ font-size:1.25rem; color: var(--oliva); margin: 2.4rem 0 .9rem; padding-bottom:.5rem; border-bottom: 2px solid var(--oliva); display:flex; align-items:baseline; gap:.55rem; }
+  h2 .num{ color: var(--ambar); font-weight:800; }
+  h3{ font-size:1.02rem; color: var(--oliva); margin: 1.4rem 0 .5rem; }
+  p{ margin: 0 0 .9rem; }
+  strong{ color: var(--oliva); }
+  code, .mono{ font-family: ui-monospace, "Cascadia Code", Consolas, monospace; background: #fff; border: 1px solid var(--linea); border-radius: 4px; padding: .1rem .4rem; font-size: .92em; color: var(--tinta); word-break: break-all; }
+  ol.steps{ margin: 0 0 1rem; padding: 0; list-style: none; counter-reset: step; }
+  ol.steps > li{ counter-increment: step; position: relative; margin: 0 0 .85rem; padding: 0 0 0 2.5rem; min-height: 1.7rem; }
+  ol.steps > li::before{ content: counter(step); position: absolute; left: 0; top: 0; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--oliva); color: #fff; font-weight:700; font-size:.85rem; display:flex; align-items:center; justify-content:center; }
+  ul.list{ margin:0 0 1rem; padding-left: 1.3rem; }
+  ul.list li{ margin-bottom:.4rem; }
+  table{ width:100%; border-collapse: collapse; margin: 0 0 1.2rem; font-size:.92rem; }
+  th, td{ text-align:left; padding:.55rem .6rem; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  th{ color: var(--oliva); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+  .box{ border-radius: 10px; padding: 1rem 1.2rem; margin: 0 0 1.2rem; break-inside: avoid; }
+  .tip{ background: #fff; border: 1px solid var(--linea); }
+  .tip .box-title{ color: var(--oliva); }
+  .warn{ background: #fff; border: 1px solid var(--linea); border-left: 4px solid var(--ambar); }
+  .warn .box-title{ color: var(--ambar); }
+  .box-title{ font-weight:800; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin: 0 0 .4rem; }
+  .box p:last-child{ margin-bottom:0; }
+  .msg{ display:block; font-family: ui-monospace, Consolas, monospace; font-size:.86rem; background:#fff; border:1px solid var(--linea); border-left: 3px solid var(--oliva-suave); border-radius:6px; padding:.5rem .7rem; margin:.35rem 0; }
+  .msg.err{ border-left-color: var(--ambar); }
+  .chips{ display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 1rem; }
+  .chip{ display:inline-block; padding:.28rem .7rem; border-radius:999px; font-size:.82rem; font-weight:600; background:#fff; border:1px solid var(--linea); }
+  footer{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--linea); font-size:.8rem; color: var(--oliva-suave); display:flex; justify-content:space-between; }
+  @media print{
+    body{ background:#fff; font-size: 12.5px; }
+    .page{ max-width:none; padding:0; margin:0; }
+    @page{ size:A4; margin: 16mm 15mm; }
+    h2{ break-after: avoid; }
+    .box, table, ol.steps > li{ break-inside: avoid; }
+    a{ color: inherit; text-decoration:none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="wordmark"><span class="bk">[</span>&nbsp;GOCAS&nbsp;<span class="bk">]</span><span class="sub">live</span></div>
+
+  <p class="kicker">Manual 2 de 5</p>
+  <h1>Marcas de agua</h1>
+  <p class="subtitle">Sube el logo de tu negocio, guárdalo en la app y colócalo sobre tus transmisiones con la posición, el tamaño y la opacidad que tú elijas.</p>
+
+  <h2><span class="num">1.</span> Qué es una marca de agua</h2>
+  <p>Una marca de agua es una imagen pequeña —normalmente un logo— que la aplicación pega encima del video mientras transmites, para que se vea todo el tiempo quién es el dueño de la transmisión. Por ejemplo, el logo de tu cancha, tu iglesia, tu colegio o tu negocio en una esquina del video.</p>
+  <p>En GOCAS Live puedes subir hasta 4 marcas de agua distintas (por ejemplo, una para cada negocio o evento que manejes) y elegir cuál usar en cada transmisión.</p>
+
+  <h2><span class="num">2.</span> Formato recomendado</h2>
+  <p>La app acepta imágenes en <strong>PNG</strong>, <strong>WebP</strong> o <strong>JPG</strong>, con un peso máximo de <strong>3 MB</strong>.</p>
+  <p>El formato recomendado es <strong>PNG con fondo transparente</strong>. La diferencia es sencilla: si tu logo tiene fondo transparente, sobre el video solo se ve el dibujo del logo (letras, ícono); si el fondo es blanco o de color (como suele pasar con un JPG), ese fondo también se va a ver como un rectángulo tapando parte del video, que se ve poco profesional.</p>
+
+  <div class="box tip">
+    <p class="box-title">Consejo</p>
+    <p>Si tu logo actual no tiene fondo transparente, pídele a quien te lo diseñó una versión en PNG con fondo transparente antes de subirlo. Es un ajuste rápido para cualquier diseñador.</p>
+  </div>
+
+  <h2><span class="num">3.</span> Subir, renombrar y eliminar una marca</h2>
+  <h3>Subir una marca nueva</h3>
+  <ol class="steps">
+    <li>Ve a la pestaña <strong>Marcas de agua</strong>.</li>
+    <li>Haz clic en el recuadro <strong>"+ Añadir marca"</strong>.</li>
+    <li>Se abre el explorador de archivos de Windows. Busca y selecciona tu imagen (PNG, WebP o JPG, máximo 3 MB).</li>
+    <li>La marca se sube y aparece de inmediato como una tarjeta nueva, con el nombre del archivo que subiste.</li>
+  </ol>
+
+  <h3>Renombrar una marca</h3>
+  <ol class="steps">
+    <li>En la tarjeta de la marca, haz clic en <strong>"Renombrar"</strong>.</li>
+    <li>Escribe el nuevo nombre (hasta 40 caracteres).</li>
+    <li>Haz clic en <strong>"Guardar"</strong>, o en <strong>"Cancelar"</strong> si te arrepentiste.</li>
+  </ol>
+
+  <h3>Eliminar una marca</h3>
+  <ol class="steps">
+    <li>En la tarjeta de la marca, haz clic en <strong>"Eliminar"</strong>.</li>
+    <li>La app te pregunta "¿Eliminar?"; confirma con <strong>"Sí"</strong> o cancela con <strong>"No"</strong>.</li>
+  </ol>
+
+  <div class="box warn">
+    <p class="box-title">Atención</p>
+    <p>Si eliminas una marca que está siendo usada en alguna transmisión, esa transmisión se queda sin marca de tu negocio (solo con el logo GOCAS). Revisa tus transmisiones antes de eliminar una marca que estés usando.</p>
+  </div>
+
+  <h2><span class="num">4.</span> Elegir la marca en una transmisión</h2>
+  <p>La marca de agua se asigna transmisión por transmisión, desde el editor de "Nueva transmisión" o "Editar transmisión" (pestaña <strong>Transmisiones</strong>). Ahí vas a encontrar estos controles, todos con una vista previa del marco en vivo mientras los mueves:</p>
+
+  <table>
+    <tr><th>Campo</th><th>Qué hace</th></tr>
+    <tr><td><strong>Marca de agua</strong></td><td>Lista desplegable con tus marcas subidas, más la opción "Sin marca (solo logo GOCAS)".</td></tr>
+    <tr><td><strong>Posición</strong></td><td>Dónde va tu marca: Arriba izquierda, Arriba derecha, Abajo izquierda, Abajo derecha o Centro.</td></tr>
+    <tr><td><strong>Tamaño</strong></td><td>Un control deslizante de 5% a 100% del ancho del video.</td></tr>
+    <tr><td><strong>Opacidad</strong></td><td>Un control deslizante de 20% a 100%, para que la marca sea más o menos transparente.</td></tr>
+    <tr><td><strong>Margen</strong></td><td>La distancia en píxeles entre tu marca y el borde del video (0 a 120 px).</td></tr>
+  </table>
+
+  <p>Debajo de esos controles hay un recuadro llamado <strong>"Vista previa del marco"</strong> que muestra en tiempo real cómo va a quedar tu marca sobre el video, según los ajustes que hagas. Muévelos hasta que te guste el resultado y luego haz clic en <strong>"Guardar"</strong>.</p>
+
+  <div class="box warn">
+    <p class="box-title">Atención</p>
+    <p>El logo de GOCAS siempre va abajo a la izquierda, con 75% de opacidad, sin importar qué ajustes elijas para tu propia marca. Es fijo en todas las transmisiones y no se puede desactivar. Tu marca se agrega además, en el lugar que tú definas — si eliges también "Abajo izquierda" para tu marca, la app la ubica junto al logo GOCAS sin taparlo.</p>
+  </div>
+
+  <footer>
+    <span>GOCAS Live — Manual 2 de 5</span>
+    <span>GOCAS Automations</span>
+  </footer>
+
+</div>
+</body>
+</html>

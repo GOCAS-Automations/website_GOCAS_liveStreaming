@@ -14,7 +14,7 @@ if (ffmpegPath && ffmpegPath.includes('app.asar')) ffmpegPath = ffmpegPath.repla
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 const YOUTUBE_RTMP = 'rtmp://a.rtmp.youtube.com/live2';
-const MAX_RESTARTS = 4;      // reintentos tras una caída a mitad de transmisión
+const MAX_RESTARTS = 30;     // reintentos tras una caída a mitad de transmisión
 const LOG_LINES = 150;       // tope de líneas guardadas en el log interno
 const LIVE_CONFIRM_MS = 8000; // tiempo enviando datos antes de confirmar "en vivo"
 
@@ -175,6 +175,10 @@ function buildArgs({ mode, id, rtspUrl, streamKey, userWmFile, position, opacity
   // Flags globales + primera entrada (RTSP sobre TCP).
   const args = [
     '-hide_banner', '-loglevel', 'warning', '-nostdin', '-stats_period', '10', '-progress', 'pipe:2',
+    // Opciones de ENTRADA para el RTSP: genera PTS ausentes y corta el socket a
+    // los 15s si la cámara muere a mitad (así FFmpeg sale y lo recoge la lógica
+    // de reintentos, en vez de quedarse colgado).
+    '-fflags', '+genpts', '-rw_timeout', '15000000',
     '-rtsp_transport', 'tcp', '-i', rtspUrl,
   ];
 
@@ -200,8 +204,21 @@ function buildArgs({ mode, id, rtspUrl, streamKey, userWmFile, position, opacity
     '-c:a', 'aac', '-b:a', '128k', '-ar', '44100'
   );
 
+  // Audio de la CÁMARA (no silent): reajusta los timestamps que llegan hacia
+  // atrás o con deriva (causa raíz del HLS que se atasca y contribuyente a la
+  // caída del RTMP). Con la pista de silencio (anullsrc) los timestamps ya son
+  // limpios, así que NO se aplica.
+  if (!silent) args.push('-af', 'aresample=async=1:first_pts=0');
+
+  // Cola de muxing amplia: absorbe desfases momentáneos entre audio y video sin
+  // abortar el proceso.
+  args.push('-max_muxing_queue_size', '1024');
+
   // Salida: YouTube (flv/rtmp) o preview HLS local.
   if (mode === 'youtube') {
+    // no_duration_filesize elimina los warnings "Failed to update header" del
+    // muxer FLV (RTMP es un stream sin duración/tamaño conocidos).
+    args.push('-flvflags', 'no_duration_filesize');
     args.push('-f', 'flv', `${YOUTUBE_RTMP}/${streamKey}`);
   } else {
     const dir = path.join(HLS_ROOT, id);
@@ -259,6 +276,14 @@ function onProgress(session) {
   const ms = outTimeToMs(session.progress.outTime);
   const now = Date.now();
 
+  // Un live de horas con hipos ocasionales nunca debe agotar los reintentos: si
+  // lleva más de 60s fluyendo desde el último arranque, la conexión se considera
+  // estable y el contador de reintentos vuelve a cero.
+  if (session.restarts > 0 && session.lastSpawnAt && (now - session.lastSpawnAt) > 60000) {
+    session.restarts = 0;
+    addLog(session, 'Conexión estable de nuevo; contador de reintentos reiniciado.');
+  }
+
   // Primera vez que FFmpeg reporta datos procesados.
   if (ms > 0 && !session.firstDataAt) {
     session.firstDataAt = now;
@@ -291,6 +316,7 @@ function launch(id, session) {
 
   const proc = spawn(ffmpegPath, args, { windowsHide: true });
   session.proc = proc;
+  session.lastSpawnAt = Date.now();
   session.steps.engine = 'ok';
 
   proc.on('error', (err) => {
@@ -305,8 +331,28 @@ function launch(id, session) {
   proc.on('exit', (code, signal) => handleExit(id, session, code, signal));
 }
 
-// Maneja la salida del proceso: parada manual, fallo rápido (sin datos) o
-// caída a mitad (con reintentos y backoff).
+// Programa un respawn con backoff tras una caída de red (código de salida ≠ 0).
+// Resetea el estado de flujo para que onProgress vuelva a marcar los pasos
+// cuando los datos comiencen a fluir de nuevo.
+function scheduleRestart(id, session, reasonLabel) {
+  session.restarts++;
+  session.status = 'restarting';
+  const delay = Math.min(3000 * session.restarts, 15000);
+  addLog(session, `${reasonLabel}; reintentando (${session.restarts}/${MAX_RESTARTS}) en ${Math.round(delay / 1000)}s…`);
+  session.progress = {};
+  session.firstDataAt = null;
+  session.steps.youtube = 'pending';
+  session.steps.live = 'pending';
+  session.restartTimer = setTimeout(() => {
+    if (session.manualStop) return;
+    launch(id, session);
+  }, delay);
+}
+
+// Maneja la salida del proceso FFmpeg. Distingue: parada manual · fallo rápido
+// (nunca llegaron datos) · cierre limpio de YouTube (code 0 = terminó la
+// transmisión, sin reintentos) · caída de red (code ≠ 0 = reintentar con
+// backoff hasta agotar MAX_RESTARTS).
 function handleExit(id, session, code, signal) {
   addLog(session, `ffmpeg finalizó (code=${code}${signal ? ', signal=' + signal : ''})`);
 
@@ -315,7 +361,8 @@ function handleExit(id, session, code, signal) {
     return;
   }
 
-  // Nunca llegaron datos: la transmisión no se estableció → error inmediato.
+  // Nunca llegaron datos: la transmisión no se estableció → error inmediato,
+  // sin reintentos (fallo rápido con clasificación de error y pasos correctos).
   if (!session.firstDataAt) {
     session.status = 'error';
     if (session.mode === 'youtube') {
@@ -329,21 +376,40 @@ function handleExit(id, session, code, signal) {
     return;
   }
 
-  // Hubo datos y se cayó: reintentar con backoff hasta MAX_RESTARTS.
+  // Ya hubo datos: la transmisión estaba en marcha y FFmpeg terminó.
+  if (session.mode === 'youtube') {
+    if (code === 0) {
+      // Salida limpia sin parada manual = YouTube cerró la transmisión.
+      session.status = 'error';
+      session.steps.youtube = 'fail';
+      session.steps.live = 'fail';
+      session.friendly = 'YouTube finalizó la transmisión (¿la terminaste en YouTube Studio, o el evento venció?). Si fue un corte, pulsa Transmitir de nuevo.';
+      return;
+    }
+    // code ≠ 0 = caída de red: reintentar con backoff.
+    if (session.restarts < MAX_RESTARTS) {
+      scheduleRestart(id, session, 'Conexión perdida');
+    } else {
+      session.status = 'error';
+      session.steps.youtube = 'fail';
+      session.steps.live = 'fail';
+      session.friendly = 'La transmisión se cayó y no se pudo recuperar tras varios intentos. Revisa la cámara y tu internet.';
+    }
+    return;
+  }
+
+  // Modo preview con datos previos (el paso 3 es el preview, no YouTube).
+  if (code === 0) {
+    session.status = 'error';
+    session.friendly = 'El preview terminó inesperadamente. Vuelve a intentarlo.';
+    return;
+  }
+  // code ≠ 0 = mismo esquema de reintentos que en youtube.
   if (session.restarts < MAX_RESTARTS) {
-    session.restarts++;
-    session.status = 'restarting';
-    const delay = Math.min(2000 * session.restarts, 10000);
-    addLog(session, `La señal se interrumpió; reintentando (${session.restarts}/${MAX_RESTARTS}) en ${Math.round(delay / 1000)}s…`);
-    session.firstDataAt = null;
-    session.progress = {};
-    session.restartTimer = setTimeout(() => {
-      if (session.manualStop) return;
-      launch(id, session);
-    }, delay);
+    scheduleRestart(id, session, 'El preview se interrumpió');
   } else {
     session.status = 'error';
-    session.friendly = 'La transmisión se cayó y no se pudo recuperar. Revisa la cámara y tu internet.';
+    session.friendly = 'El preview se cayó y no se pudo recuperar tras varios intentos. Vuelve a intentarlo.';
   }
 }
 

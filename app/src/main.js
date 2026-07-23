@@ -2,7 +2,7 @@
 // Arranca el store local, el motor FFmpeg y el mini servidor 127.0.0.1, crea la
 // ventana y expone toda la lógica al renderer vía IPC (contextBridge en preload).
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -18,6 +18,23 @@ const ASSETS = app.isPackaged
   ? path.join(process.resourcesPath, 'assets')
   : path.join(__dirname, '..', 'assets');
 const gocasLogo = path.join(ASSETS, 'gocas-watermark.png');
+
+// Carpeta de manuales: en producción va empaquetada en resources/manuales
+// (ver extraResources en package.json).
+const MANUALES = app.isPackaged
+  ? path.join(process.resourcesPath, 'manuales')
+  : path.join(__dirname, '..', 'manuales');
+
+// Lee y parsea el manifest de manuales; devuelve el array (o [] si no existe).
+function readManualsManifest() {
+  try {
+    const raw = fs.readFileSync(path.join(MANUALES, 'manifest.json'), 'utf8');
+    const data = JSON.parse(raw);
+    return Array.isArray(data.manuales) ? data.manuales : [];
+  } catch (err) {
+    return [];
+  }
+}
 
 // Agrega la URL servible (127.0.0.1) a cada marca de agua.
 function withUrls(watermarks) {
@@ -153,6 +170,48 @@ function registerIpc() {
 
   // Estado (string) de todas las transmisiones.
   ipcMain.handle('stream:statusAll', () => engine.statusAll());
+
+  // Listado de manuales desde el manifest (o [] si aún no hay manuales).
+  ipcMain.handle('manuals:list', () => readManualsManifest());
+
+  // Abrir un manual. Valida SIEMPRE que el archivo esté declarado en el manifest
+  // (nunca rutas arbitrarias) y que quede dentro de la carpeta de manuales.
+  ipcMain.handle('manuals:open', async (e, { file, type } = {}) => {
+    const list = readManualsManifest();
+    if (!list.length) return { error: 'No hay manuales disponibles.' };
+
+    const allowed = new Set();
+    for (const m of list) {
+      if (m && m.html) allowed.add(m.html);
+      if (m && m.pdf) allowed.add(m.pdf);
+    }
+    if (!file || typeof file !== 'string' || !allowed.has(file)) {
+      return { error: 'Manual no válido.' };
+    }
+
+    const abs = path.join(MANUALES, file);
+    // Defensa extra contra path traversal: el archivo resuelto debe seguir
+    // dentro de MANUALES.
+    const rel = path.relative(MANUALES, abs);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) return { error: 'Ruta no permitida.' };
+    if (!fs.existsSync(abs)) return { error: 'Ese manual aún no está disponible en esta versión.' };
+
+    if (type === 'pdf') {
+      await shell.openPath(abs);
+      return { ok: true };
+    }
+
+    // type 'html' → ventana propia de lectura.
+    const win = new BrowserWindow({
+      width: 920,
+      height: 820,
+      backgroundColor: '#f5f1e8',
+      autoHideMenuBar: true,
+      webPreferences: { contextIsolation: true, nodeIntegration: false },
+    });
+    await win.loadFile(abs);
+    return { ok: true };
+  });
 }
 
 app.whenReady().then(async () => {

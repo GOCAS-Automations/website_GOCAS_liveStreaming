@@ -26,4 +26,8 @@ contextBridge.exposeInMainWorld('gocas', {
   stop: (id) => ipcRenderer.invoke('stream:stop', id),
   status: (id) => ipcRenderer.invoke('stream:status', id),
   statusAll: () => ipcRenderer.invoke('stream:statusAll'),
+
+  // Manuales.
+  manualsList: () => ipcRenderer.invoke('manuals:list'),
+  manualsOpen: (file, type) => ipcRenderer.invoke('manuals:open', { file, type }),
 });

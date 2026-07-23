@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GOCAS Live · Conecta tu cámara (RTSP)</title>
+<style>
+  :root{
+    --oliva:#3d4a2a;
+    --ambar:#d97a3c;
+    --crema:#f5f1e8;
+    --tinta:#23301a;
+    --oliva-suave:#6b7553;
+    --linea: rgba(35,48,26,.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--crema);
+    color: var(--tinta);
+    line-height:1.6;
+    font-size:15.5px;
+  }
+  .page{ max-width: 760px; margin: 0 auto; padding: 48px 40px 64px; }
+  .wordmark{ display:inline-flex; align-items:center; gap:.5rem; font-weight:800; font-size:1rem; letter-spacing:.03em; color: var(--oliva); margin-bottom: 2.2rem; }
+  .wordmark .bk{ color: var(--ambar); }
+  .wordmark .sub{ font-weight:600; color: var(--oliva-suave); text-transform:lowercase; letter-spacing:.02em; font-size:.85rem; border-left: 1px solid var(--linea); padding-left:.5rem; margin-left:.1rem; }
+  .kicker{ font-size:.78rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ambar); margin: 0 0 .5rem; }
+  h1{ font-size:2rem; line-height:1.15; color: var(--oliva); margin: 0 0 .5rem; letter-spacing:-.01em; }
+  .subtitle{ font-size:1.05rem; color: var(--tinta); opacity:.8; margin: 0 0 2.4rem; max-width: 58ch; }
+  h2{ font-size:1.25rem; color: var(--oliva); margin: 2.4rem 0 .9rem; padding-bottom:.5rem; border-bottom: 2px solid var(--oliva); display:flex; align-items:baseline; gap:.55rem; }
+  h2 .num{ color: var(--ambar); font-weight:800; }
+  h3{ font-size:1.02rem; color: var(--oliva); margin: 1.4rem 0 .5rem; }
+  p{ margin: 0 0 .9rem; }
+  strong{ color: var(--oliva); }
+  code, .mono{ font-family: ui-monospace, "Cascadia Code", Consolas, monospace; background: #fff; border: 1px solid var(--linea); border-radius: 4px; padding: .1rem .4rem; font-size: .92em; color: var(--tinta); word-break: break-all; }
+  ol.steps{ margin: 0 0 1rem; padding: 0; list-style: none; counter-reset: step; }
+  ol.steps > li{ counter-increment: step; position: relative; margin: 0 0 .85rem; padding: 0 0 0 2.5rem; min-height: 1.7rem; }
+  ol.steps > li::before{ content: counter(step); position: absolute; left: 0; top: 0; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--oliva); color: #fff; font-weight:700; font-size:.85rem; display:flex; align-items:center; justify-content:center; }
+  ul.list{ margin:0 0 1rem; padding-left: 1.3rem; }
+  ul.list li{ margin-bottom:.4rem; }
+  table{ width:100%; border-collapse: collapse; margin: 0 0 1.2rem; font-size:.92rem; }
+  th, td{ text-align:left; padding:.55rem .6rem; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  th{ color: var(--oliva); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+  .box{ border-radius: 10px; padding: 1rem 1.2rem; margin: 0 0 1.2rem; break-inside: avoid; }
+  .tip{ background: #fff; border: 1px solid var(--linea); }
+  .tip .box-title{ color: var(--oliva); }
+  .warn{ background: #fff; border: 1px solid var(--linea); border-left: 4px solid var(--ambar); }
+  .warn .box-title{ color: var(--ambar); }
+  .box-title{ font-weight:800; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin: 0 0 .4rem; }
+  .box p:last-child{ margin-bottom:0; }
+  .msg{ display:block; font-family: ui-monospace, Consolas, monospace; font-size:.86rem; background:#fff; border:1px solid var(--linea); border-left: 3px solid var(--oliva-suave); border-radius:6px; padding:.5rem .7rem; margin:.35rem 0; }
+  .msg.err{ border-left-color: var(--ambar); }
+  .chips{ display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 1rem; }
+  .chip{ display:inline-block; padding:.28rem .7rem; border-radius:999px; font-size:.82rem; font-weight:600; background:#fff; border:1px solid var(--linea); }
+  footer{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--linea); font-size:.8rem; color: var(--oliva-suave); display:flex; justify-content:space-between; }
+  @media print{
+    body{ background:#fff; font-size: 12.5px; }
+    .page{ max-width:none; padding:0; margin:0; }
+    @page{ size:A4; margin: 16mm 15mm; }
+    h2{ break-after: avoid; }
+    .box, table, ol.steps > li{ break-inside: avoid; }
+    a{ color: inherit; text-decoration:none; }
+  }
+  .anat{ display:flex; flex-wrap:wrap; gap:.4rem; font-family: ui-monospace, Consolas, monospace; font-size:1.02rem; background:#fff; border:1px solid var(--linea); border-radius:8px; padding:.9rem 1rem; margin:0 0 1rem; word-break: break-all; }
+  .anat b{ color:var(--ambar); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="wordmark"><span class="bk">[</span>&nbsp;GOCAS&nbsp;<span class="bk">]</span><span class="sub">live</span></div>
+
+  <p class="kicker">Manual 3 de 5</p>
+  <h1>Conecta tu cámara (RTSP)</h1>
+  <p class="subtitle">Qué es RTSP, cómo armar la dirección de tu cámara paso a paso y cómo leer los resultados del botón "Probar cámara".</p>
+
+  <h2><span class="num">1.</span> Qué es RTSP, en palabras simples</h2>
+  <p>RTSP es el nombre técnico del "idioma" que usan la mayoría de cámaras de vigilancia para enviar su video en vivo por la red, en lugar de guardarlo en un archivo. Cuando compraste tu cámara de vigilancia (marca Hikvision, Dahua, TP-Link/Tapo u otra), esa cámara ya sabe "hablar" RTSP sin que tengas que instalarle nada.</p>
+  <p>Para que GOCAS Live pueda leer tu cámara, necesitas darle una dirección especial llamada <strong>URL RTSP</strong>, que funciona como la dirección de una casa: le dice a la app exactamente dónde está la cámara y cómo entrar a pedirle el video.</p>
+
+  <h2><span class="num">2.</span> Anatomía de la URL RTSP</h2>
+  <p>Una URL RTSP típica se ve así:</p>
+  <div class="anat">rtsp://<b>usuario</b>:<b>clave</b>@<b>192.168.1.10</b>:<b>554</b>/<b>stream1</b></div>
+
+  <table>
+    <tr><th>Parte</th><th>Qué significa</th></tr>
+    <tr><td><code>rtsp://</code></td><td>El "protocolo": le avisa a la app que lo que sigue es una dirección de cámara, no una página web. Siempre empieza así.</td></tr>
+    <tr><td><code>usuario</code></td><td>El nombre de usuario configurado en la cámara para verla (muchas veces es <code>admin</code> por defecto).</td></tr>
+    <tr><td><code>clave</code></td><td>La contraseña de ese usuario en la cámara. Va justo después de los dos puntos <code>:</code> y antes de la arroba <code>@</code>.</td></tr>
+    <tr><td><code>@</code></td><td>Separa las credenciales (usuario y clave) del resto de la dirección. Todo lo que va antes de la arroba es "quién eres"; todo lo que va después es "a dónde te conectas".</td></tr>
+    <tr><td><code>192.168.1.10</code></td><td>La <strong>IP</strong> de la cámara: su dirección dentro de la red local de tu casa o negocio (parecida a un número de casa en una calle).</td></tr>
+    <tr><td><code>554</code></td><td>El <strong>puerto</strong> RTSP. Casi todas las cámaras usan el 554 por defecto; solo cámbialo si el fabricante te indicó otro número.</td></tr>
+    <tr><td><code>/stream1</code></td><td>La <strong>ruta</strong>: indica cuál de las señales de video de la cámara quieres (algunas cámaras ofrecen más de una calidad, ver sección 4).</td></tr>
+  </table>
+
+  <div class="box tip">
+    <p class="box-title">Consejo</p>
+    <p>Si el usuario o la clave de tu cámara tienen símbolos como <code>@</code>, <code>:</code> o espacios, pueden confundir a la URL. Si te pasa, prueba cambiando la contraseña de la cámara por una sin símbolos especiales desde la app o el panel del fabricante.</p>
+  </div>
+
+  <h2><span class="num">3.</span> Cómo averiguar la IP de tu cámara</h2>
+  <p>Tienes tres formas de encontrarla:</p>
+  <ol class="steps">
+    <li><strong>La app del fabricante:</strong> si instalaste en tu celular la app de tu cámara (por ejemplo Hik-Connect, gDMSS/gDMSS Plus para Dahua, o Tapo para TP-Link), entra a la información o configuración del dispositivo: ahí suele mostrar la dirección IP.</li>
+    <li><strong>La lista de dispositivos del router:</strong> abre un navegador en cualquier computador de la misma red y entra a la dirección del router (normalmente <code>192.168.1.1</code> o <code>192.168.0.1</code> — viene en una etiqueta del router). Inicia sesión y busca una sección como "Dispositivos conectados" o "DHCP Clients": ahí aparece cada aparato conectado con su IP y, casi siempre, su nombre.</li>
+    <li><strong>La etiqueta de la cámara:</strong> algunas cámaras traen impresa una IP fija de fábrica en una pegatina, junto con el usuario y clave por defecto.</li>
+  </ol>
+
+  <h2><span class="num">4.</span> Rutas típicas según la marca</h2>
+  <p>La parte final de la URL (la "ruta") cambia según el fabricante de tu cámara. Estas son las más comunes:</p>
+  <table>
+    <tr><th>Marca</th><th>Stream principal</th><th>Sub-stream</th></tr>
+    <tr><td>Hikvision</td><td><code>/Streaming/Channels/101</code></td><td><code>/Streaming/Channels/102</code></td></tr>
+    <tr><td>Dahua</td><td><code>/cam/realmonitor?channel=1&subtype=0</code></td><td><code>/cam/realmonitor?channel=1&subtype=1</code></td></tr>
+    <tr><td>TP-Link / Tapo</td><td><code>/stream1</code></td><td><code>/stream2</code></td></tr>
+    <tr><td>Genéricas / otras marcas</td><td><code>/live</code> o <code>/stream0</code></td><td>Consulta el manual de tu cámara</td></tr>
+  </table>
+  <p>Si tu cámara es de otra marca y no aparece en la tabla, busca en internet "URL RTSP" seguido de la marca y el modelo exacto de tu cámara: casi todos los fabricantes publican esta información.</p>
+
+  <h2><span class="num">5.</span> Stream principal vs. sub-stream: ¿cuál uso?</h2>
+  <p>Muchas cámaras envían dos calidades de video al mismo tiempo:</p>
+  <ul class="list">
+    <li><strong>Stream principal</strong> (canal 1, "101" en Hikvision, <code>subtype=0</code> en Dahua): la máxima resolución de la cámara. Pesa más y exige más de tu internet de subida.</li>
+    <li><strong>Sub-stream</strong> (canal 2, "102" en Hikvision, <code>subtype=1</code> en Dahua): una calidad más liviana, pensada justamente para enviar por internet.</li>
+  </ul>
+  <p>Usa el <strong>sub-stream</strong> cuando: otro sistema (una grabadora, un DVR, un software de vigilancia) ya está usando el stream principal de esa cámara para grabar, o cuando tu conexión de internet para transmitir es limitada. Usa el <strong>stream principal</strong> cuando quieras la mejor imagen posible y tu internet de subida lo soporte sin problema (revisa el manual 5 para calcular cuánto necesitas).</p>
+
+  <h2><span class="num">6.</span> Usar "Probar cámara"</h2>
+  <p>Antes de intentar salir en vivo, siempre prueba la URL. Puedes hacerlo desde dos lugares: el botón <strong>"Probar"</strong> junto al campo de la URL RTSP dentro del editor de una transmisión, o el botón <strong>"Probar cámara"</strong> en la tarjeta de una transmisión ya creada.</p>
+  <p>Al presionarlo, la app se conecta un instante a la cámara y te muestra un resultado:</p>
+
+  <h3>Si todo está bien</h3>
+  <div class="msg">Cámara en línea · h264 1920x1080@25 · audio: sí</div>
+  <p>Significa que la app pudo conectarse y leer la señal: te muestra el códec de video, la resolución, los cuadros por segundo (fps) y si la cámara envía audio o no. Ya puedes seguir con el manual 4.</p>
+
+  <h3>Si algo falla</h3>
+  <p>La app traduce el error técnico a un mensaje en español que te dice exactamente qué revisar:</p>
+
+  <div class="msg err">"La cámara rechazó el usuario o la contraseña. Revisa las credenciales en la URL RTSP."</div>
+  <p>El usuario o la clave que pusiste en la URL están mal. Verifica esos dos datos directamente en la app o el panel de configuración de tu cámara.</p>
+
+  <div class="msg err">"La cámara respondió pero esa ruta no existe. Revisa el final de la URL (ej. /stream1, /stream2)."</div>
+  <p>La IP, el usuario y la clave son correctos, pero la parte final de la URL (la ruta) no coincide con ninguna señal de la cámara. Revisa la tabla de la sección 4 para tu marca de cámara.</p>
+
+  <div class="msg err">"Nada respondió en esa IP/puerto. ¿La IP es correcta? ¿El puerto RTSP (554) está activo?"</div>
+  <p>No hay ninguna cámara escuchando en esa dirección y puerto. Verifica que la IP esté bien escrita y que el puerto sea el correcto (normalmente 554).</p>
+
+  <div class="msg err">"La cámara no respondió (tiempo agotado). ¿Este equipo está en la misma red que la cámara?"</div>
+  <p>La app esperó varios segundos y no obtuvo ninguna respuesta. La causa más común es que el computador y la cámara no están en la misma red (ver sección 7).</p>
+
+  <div class="msg err">"Esa IP respondió, pero lo que envía no es un stream RTSP válido."</div>
+  <p>Hay algo en esa dirección, pero no es una cámara RTSP (por ejemplo, podría ser otro aparato de la red que usa esa misma IP o puerto). Revisa que la IP corresponda de verdad a tu cámara.</p>
+
+  <div class="box warn">
+    <p class="box-title">Atención</p>
+    <p>Para que "Probar cámara" funcione, <strong>el computador donde está instalado GOCAS Live tiene que estar conectado a la misma red que la cámara</strong> (el mismo WiFi o el mismo cable de red conectado al mismo router). Si el computador está en otra red —por ejemplo, usando los datos móviles del celular sin estar conectado también a la red de la cámara— nunca la va a encontrar. El manual 5 explica cómo combinar la red de la cámara con el internet del celular al mismo tiempo.</p>
+  </div>
+
+  <footer>
+    <span>GOCAS Live — Manual 3 de 5</span>
+    <span>GOCAS Automations</span>
+  </footer>
+
+</div>
+</body>
+</html>

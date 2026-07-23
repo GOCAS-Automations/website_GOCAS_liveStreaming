@@ -83,7 +83,7 @@ html, body {
   position: relative;
   display: flex;
   width: 100%;
-  max-width: 460px;
+  max-width: 560px;
   padding: 4px;
   background: var(--surface2);
   border-radius: 999px;
@@ -94,7 +94,7 @@ html, body {
   top: 4px;
   left: 4px;
   bottom: 4px;
-  width: calc((100% - 8px) / 3);
+  width: calc((100% - 8px) / 4);
   background: var(--surface);
   border-radius: 999px;
   box-shadow: var(--shadow-soft);
@@ -103,6 +103,7 @@ html, body {
 }
 .seg[data-active="1"] .seg-thumb { transform: translateX(100%); }
 .seg[data-active="2"] .seg-thumb { transform: translateX(200%); }
+.seg[data-active="3"] .seg-thumb { transform: translateX(300%); }
 .seg-btn {
   position: relative;
   z-index: 1;
@@ -294,6 +295,7 @@ html, body {
 .live-preview:empty { display: none; }
 .live-preview { margin-top: 14px; }
 .preview-inner { display: flex; flex-direction: column; gap: 10px; }
+.preview-stage { position: relative; }
 .preview-video {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -302,6 +304,45 @@ html, body {
   display: block;
 }
 .preview-cap { font-size: 13px; color: var(--muted); text-align: center; }
+
+/* Overlay de carga sobre el video (mientras no hay frames) */
+.preview-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-inner);
+  background: rgba(35, 48, 26, 0.72);
+  color: #f5f1e8;
+  font-size: 13px;
+  text-align: center;
+}
+.preview-overlay-msg { max-width: 240px; }
+.preview-spinner {
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  border: 3px solid rgba(245, 241, 232, 0.25);
+  border-top-color: var(--amber);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Mensaje cuando el player se rinde tras varios ciclos de recuperación */
+.preview-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 26px 18px;
+  background: var(--surface2);
+  border-radius: var(--radius-inner);
+  text-align: center;
+}
+.preview-failed p { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 320px; }
 
 /* ── Detalles técnicos / log ─────────────────────────────────────────────── */
 .live-details { margin-top: 14px; }
@@ -431,6 +472,19 @@ html, body {
 .help-card p { font-size: 14px; color: var(--ink); margin: 0 0 10px; }
 .help-card p:last-child { margin-bottom: 0; }
 .help-card .tip { color: var(--muted); font-size: 13px; }
+
+/* ── Manuales ────────────────────────────────────────────────────────────── */
+.manuales-list { display: flex; flex-direction: column; gap: 14px; }
+.manual-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.manual-info { min-width: 0; }
+.manual-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+.manual-desc { font-size: 13.5px; color: var(--muted); margin: 0; }
+.manual-actions { display: flex; gap: 8px; flex: 0 0 auto; }
 
 /* ── Sheet / modal (sube desde abajo) ────────────────────────────────────── */
 .sheet-backdrop {

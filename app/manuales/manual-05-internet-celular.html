@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GOCAS Live · Transmitir con el internet del celular</title>
+<style>
+  :root{
+    --oliva:#3d4a2a;
+    --ambar:#d97a3c;
+    --crema:#f5f1e8;
+    --tinta:#23301a;
+    --oliva-suave:#6b7553;
+    --linea: rgba(35,48,26,.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--crema);
+    color: var(--tinta);
+    line-height:1.6;
+    font-size:15.5px;
+  }
+  .page{ max-width: 760px; margin: 0 auto; padding: 48px 40px 64px; }
+  .wordmark{ display:inline-flex; align-items:center; gap:.5rem; font-weight:800; font-size:1rem; letter-spacing:.03em; color: var(--oliva); margin-bottom: 2.2rem; }
+  .wordmark .bk{ color: var(--ambar); }
+  .wordmark .sub{ font-weight:600; color: var(--oliva-suave); text-transform:lowercase; letter-spacing:.02em; font-size:.85rem; border-left: 1px solid var(--linea); padding-left:.5rem; margin-left:.1rem; }
+  .kicker{ font-size:.78rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ambar); margin: 0 0 .5rem; }
+  h1{ font-size:2rem; line-height:1.15; color: var(--oliva); margin: 0 0 .5rem; letter-spacing:-.01em; }
+  .subtitle{ font-size:1.05rem; color: var(--tinta); opacity:.8; margin: 0 0 2.4rem; max-width: 58ch; }
+  h2{ font-size:1.25rem; color: var(--oliva); margin: 2.4rem 0 .9rem; padding-bottom:.5rem; border-bottom: 2px solid var(--oliva); display:flex; align-items:baseline; gap:.55rem; }
+  h2 .num{ color: var(--ambar); font-weight:800; }
+  h3{ font-size:1.02rem; color: var(--oliva); margin: 1.4rem 0 .5rem; }
+  p{ margin: 0 0 .9rem; }
+  strong{ color: var(--oliva); }
+  code, .mono{ font-family: ui-monospace, "Cascadia Code", Consolas, monospace; background: #fff; border: 1px solid var(--linea); border-radius: 4px; padding: .1rem .4rem; font-size: .92em; color: var(--tinta); word-break: break-all; }
+  ol.steps{ margin: 0 0 1rem; padding: 0; list-style: none; counter-reset: step; }
+  ol.steps > li{ counter-increment: step; position: relative; margin: 0 0 .85rem; padding: 0 0 0 2.5rem; min-height: 1.7rem; }
+  ol.steps > li::before{ content: counter(step); position: absolute; left: 0; top: 0; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--oliva); color: #fff; font-weight:700; font-size:.85rem; display:flex; align-items:center; justify-content:center; }
+  ul.list{ margin:0 0 1rem; padding-left: 1.3rem; }
+  ul.list li{ margin-bottom:.4rem; }
+  table{ width:100%; border-collapse: collapse; margin: 0 0 1.2rem; font-size:.92rem; }
+  th, td{ text-align:left; padding:.55rem .6rem; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  th{ color: var(--oliva); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+  .box{ border-radius: 10px; padding: 1rem 1.2rem; margin: 0 0 1.2rem; break-inside: avoid; }
+  .tip{ background: #fff; border: 1px solid var(--linea); }
+  .tip .box-title{ color: var(--oliva); }
+  .warn{ background: #fff; border: 1px solid var(--linea); border-left: 4px solid var(--ambar); }
+  .warn .box-title{ color: var(--ambar); }
+  .box-title{ font-weight:800; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin: 0 0 .4rem; }
+  .box p:last-child{ margin-bottom:0; }
+  .msg{ display:block; font-family: ui-monospace, Consolas, monospace; font-size:.86rem; background:#fff; border:1px solid var(--linea); border-left: 3px solid var(--oliva-suave); border-radius:6px; padding:.5rem .7rem; margin:.35rem 0; }
+  .msg.err{ border-left-color: var(--ambar); }
+  .chips{ display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 1rem; }
+  .chip{ display:inline-block; padding:.28rem .7rem; border-radius:999px; font-size:.82rem; font-weight:600; background:#fff; border:1px solid var(--linea); }
+  footer{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--linea); font-size:.8rem; color: var(--oliva-suave); display:flex; justify-content:space-between; }
+  @media print{
+    body{ background:#fff; font-size: 12.5px; }
+    .page{ max-width:none; padding:0; margin:0; }
+    @page{ size:A4; margin: 16mm 15mm; }
+    h2{ break-after: avoid; }
+    .box, table, ol.steps > li{ break-inside: avoid; }
+    a{ color: inherit; text-decoration:none; }
+  }
+  .diagram{ display:flex; align-items:center; justify-content:space-between; gap:.6rem; background:#fff; border:1px solid var(--linea); border-radius:10px; padding:1.1rem 1rem; margin:0 0 1.2rem; text-align:center; font-size:.85rem; break-inside: avoid; }
+  .diagram .node{ flex:1; }
+  .diagram .node b{ display:block; color:var(--oliva); font-size:.9rem; margin-bottom:.2rem; }
+  .diagram .arrow{ color:var(--ambar); font-size:1.3rem; font-weight:700; }
+  .caseTag{ display:inline-block; background:var(--oliva); color:#fff; font-weight:800; font-size:.78rem; letter-spacing:.04em; padding:.25rem .7rem; border-radius:999px; margin: 0 0 .6rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="wordmark"><span class="bk">[</span>&nbsp;GOCAS&nbsp;<span class="bk">]</span><span class="sub">live</span></div>
+
+  <p class="kicker">Manual 5 de 5</p>
+  <h1>Transmitir con el internet del celular</h1>
+  <p class="subtitle">Cómo leer tu cámara por cable y enviar la transmisión por los datos móviles de un celular al mismo tiempo, para no depender del internet del lugar.</p>
+
+  <h2><span class="num">1.</span> Por qué necesitas esto</h2>
+  <p>El internet de muchos lugares (canchas, salones, iglesias, locales) tiene buena velocidad para <em>bajar</em> información (ver videos, navegar) pero muy poca velocidad para <em>subir</em> información, que es justamente lo que necesita una transmisión en vivo. Si intentas transmitir con ese internet, el video se ve entrecortado o la app se queda "Reconectando" todo el tiempo.</p>
+  <p>La solución: usar el internet móvil de un celular (datos 4G/5G) como salida hacia YouTube, mientras la cámara se sigue leyendo por la red local del lugar. Muchas veces los datos móviles de un celular son más rápidos para subir video que el internet fijo del sitio.</p>
+
+  <h2><span class="num">2.</span> Qué necesitas</h2>
+  <ul class="list">
+    <li>Un computador portátil con <strong>puerto de red (ethernet)</strong>, o un adaptador USB a ethernet si el portátil no lo trae.</li>
+    <li>Un <strong>cable de red</strong> para conectar el portátil a la red de la cámara.</li>
+    <li>Un <strong>celular con buen plan de datos</strong> (revisa la sección 6 para calcular cuántos datos gasta una transmisión).</li>
+  </ul>
+
+  <h2><span class="num">3.</span> La idea clave, en palabras simples</h2>
+  <p>Tu computador va a usar <strong>dos conexiones de red al mismo tiempo</strong>, cada una para una cosa distinta:</p>
+  <div class="diagram">
+    <div class="node"><b>Cámara</b>por cable de red<br/>(no gasta internet)</div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Tu computador</b>con GOCAS Live</div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Hotspot del celular</b>sale a YouTube</div>
+  </div>
+  <p>Leer la señal de la cámara por el <strong>cable</strong> no consume ni un solo megabyte de tu plan de datos: ese video viaja únicamente dentro de la red local (del router al computador), sin tocar internet. Lo único que sale por internet —por el <strong>WiFi conectado al hotspot del celular</strong>— es el video ya procesado que se envía a YouTube.</p>
+  <p>Windows es capaz de manejar ambas conexiones a la vez y decide automáticamente por cuál sale cada cosa: por el cable busca la cámara (que está en esa red), y por el WiFi del hotspot sale a internet. No tienes que configurar nada especial en la mayoría de los casos — solo conectar ambas cosas.</p>
+
+  <h2><span class="num">4.</span> Paso a paso — Caso A: cámara conectada por cable</h2>
+  <p class="caseTag">Caso más común</p>
+  <ol class="steps">
+    <li>Conecta tu computador con el cable de red al mismo router o switch al que está conectada la cámara.</li>
+    <li>Abre GOCAS Live y usa <strong>"Probar cámara"</strong> (manual 3). Debes ver el chip <strong>"Cámara en línea"</strong>. Si no aparece, resuelve esto antes de seguir — sin esto no vale la pena activar el hotspot todavía.</li>
+    <li>Activa el hotspot (zona WiFi) de tu celular:
+      <ul class="list" style="margin-top:.5rem;">
+        <li><strong>Android:</strong> abre Ajustes → busca <strong>"Conexiones"</strong> o <strong>"Redes e Internet"</strong> → entra a <strong>"Zona Wi-Fi portátil"</strong> (o "Punto de acceso Wi-Fi") → actívala. Revisa (o define) el nombre de red y la clave que te pida antes de activarla.</li>
+        <li><strong>iPhone:</strong> abre Ajustes → <strong>"Compartir Internet"</strong> (o "Personal Hotspot") → actívalo → confirma o cambia la clave Wi-Fi que aparece debajo.</li>
+      </ul>
+    </li>
+    <li>En tu computador, conecta el <strong>WiFi</strong> (no el cable) a la red del hotspot que acabas de crear, con el nombre y clave que definiste.</li>
+    <li>Confirma que el computador tiene internet: abre cualquier página web en el navegador y verifica que carga.</li>
+    <li>Vuelve a GOCAS Live y haz un <strong>Preview</strong> primero (manual 4, sección 5). Si se ve bien, transmite.</li>
+  </ol>
+
+  <div class="box warn">
+    <p class="box-title">Atención — caso especial</p>
+    <p>Si la red del cable (la de la cámara) <strong>también</strong> tiene salida a internet, Windows podría decidir sacar la transmisión por ahí en lugar del hotspot — y volverías al problema original de un internet lento para subir. Tienes dos soluciones, de la más simple a la más técnica:</p>
+    <p><strong>Opción simple:</strong> transmite con el cable puesto igual, pero pídele al administrador de esa red que desactive la salida a internet de esa toma o de ese punto de red específico (dejando solo la comunicación local con la cámara).</p>
+    <p><strong>Opción avanzada (ajustar la "métrica" en Windows 11):</strong> le puedes indicar a Windows cuál conexión preferir para salir a internet:</p>
+  </div>
+
+  <ol class="steps">
+    <li>Haz clic en el botón <strong>Inicio</strong> de Windows y abre <strong>Configuración</strong> (el ícono de engranaje).</li>
+    <li>Entra a <strong>"Red e Internet"</strong>.</li>
+    <li>Haz clic en <strong>"Ethernet"</strong> (o "Adaptador de Ethernet").</li>
+    <li>Haz clic en el nombre de tu adaptador de red (el que usas para el cable).</li>
+    <li>Busca la sección <strong>"Configuración de IP"</strong> y haz clic en <strong>"Editar"</strong>.</li>
+    <li>En la ventana que se abre, baja hasta <strong>"Métrica de interfaz"</strong>, cámbiala de "Automática" a manual y ponle un número <strong>alto</strong>, por ejemplo <code>9000</code> (números más altos significan menos prioridad).</li>
+    <li>Guarda los cambios.</li>
+    <li>Repite lo mismo para tu red <strong>WiFi</strong> (Configuración → Red e Internet → WiFi → clic en el nombre de la red conectada → Editar → Métrica de interfaz), pero esta vez ponle un número <strong>bajo</strong>, por ejemplo <code>1</code>.</li>
+  </ol>
+  <p>Con esto le dices a Windows: "para salir a internet, prefiere siempre el WiFi (el hotspot) antes que el cable". La cámara se sigue leyendo perfecto por el cable, porque eso no depende de la métrica de salida a internet, sino de estar en la misma red local.</p>
+
+  <h2><span class="num">5.</span> Paso a paso — Caso B: cámara por WiFi</h2>
+  <p class="caseTag">Cuando no tienes cable</p>
+  <p>Si tu cámara se conecta por WiFi (no tiene cable de red), la única opción es conectar <strong>la cámara y el computador al mismo hotspot del celular</strong>, ya que el computador solo tiene una conexión WiFi disponible a la vez para esto.</p>
+  <ol class="steps">
+    <li>Activa el hotspot del celular (mismos pasos de la sección 4).</li>
+    <li>Conecta la <strong>cámara</strong> a esa red WiFi (usualmente desde la app del fabricante de la cámara, buscando la opción de configurar WiFi).</li>
+    <li>Conecta el <strong>computador</strong> a esa misma red WiFi.</li>
+    <li>En GOCAS Live, usa <strong>"Probar cámara"</strong>.</li>
+  </ol>
+
+  <div class="box warn">
+    <p class="box-title">Atención</p>
+    <p>Algunos celulares <strong>aíslan los dispositivos</strong> conectados a su hotspot entre sí, por seguridad: aunque la cámara y el computador estén en la misma red del celular, el computador no logra "verla". Si "Probar cámara" falla en este caso, no es un error de la URL: prueba con otro celular, revisa si el tuyo tiene una opción como "Aislamiento de AP" o similar para desactivar, o vuelve al Caso A conectando la cámara por cable a una red distinta.</p>
+  </div>
+
+  <h2><span class="num">6.</span> Cuánto consume de datos</h2>
+  <p>A la calidad estándar de GOCAS Live (aproximadamente 4500 kbps de video), una transmisión consume alrededor de <strong>2 GB por hora</strong>. Revisa el plan de datos de tu celular antes del evento y calcula cuánto necesitas según la duración esperada (por ejemplo, un evento de 3 horas necesita cerca de 6 GB).</p>
+
+  <div class="box tip">
+    <p class="box-title">Consejo</p>
+    <p>Para que la transmisión sea estable: deja el celular <strong>enchufado a la corriente</strong> durante todo el evento (transmitir consume batería rápido), colócalo <strong>cerca del computador</strong> y en un lugar con <strong>buena señal</strong> (evita rincones cerrados o metálicos). Si puedes, revisa antes del evento cuántas rayitas de señal 4G/5G tiene el celular en el sitio exacto donde vas a transmitir.</p>
+  </div>
+
+  <footer>
+    <span>GOCAS Live — Manual 5 de 5</span>
+    <span>GOCAS Automations</span>
+  </footer>
+
+</div>
+</body>
+</html>

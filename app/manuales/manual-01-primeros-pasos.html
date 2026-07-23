@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GOCAS Live · Primeros pasos</title>
+<style>
+  :root{
+    --oliva:#3d4a2a;
+    --ambar:#d97a3c;
+    --crema:#f5f1e8;
+    --tinta:#23301a;
+    --oliva-suave:#6b7553;
+    --linea: rgba(35,48,26,.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--crema);
+    color: var(--tinta);
+    line-height:1.6;
+    font-size:15.5px;
+  }
+  .page{ max-width: 760px; margin: 0 auto; padding: 48px 40px 64px; }
+  .wordmark{ display:inline-flex; align-items:center; gap:.5rem; font-weight:800; font-size:1rem; letter-spacing:.03em; color: var(--oliva); margin-bottom: 2.2rem; }
+  .wordmark .bk{ color: var(--ambar); }
+  .wordmark .sub{ font-weight:600; color: var(--oliva-suave); text-transform:lowercase; letter-spacing:.02em; font-size:.85rem; border-left: 1px solid var(--linea); padding-left:.5rem; margin-left:.1rem; }
+  .kicker{ font-size:.78rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ambar); margin: 0 0 .5rem; }
+  h1{ font-size:2rem; line-height:1.15; color: var(--oliva); margin: 0 0 .5rem; letter-spacing:-.01em; }
+  .subtitle{ font-size:1.05rem; color: var(--tinta); opacity:.8; margin: 0 0 2.4rem; max-width: 58ch; }
+  h2{ font-size:1.25rem; color: var(--oliva); margin: 2.4rem 0 .9rem; padding-bottom:.5rem; border-bottom: 2px solid var(--oliva); display:flex; align-items:baseline; gap:.55rem; }
+  h2 .num{ color: var(--ambar); font-weight:800; }
+  h3{ font-size:1.02rem; color: var(--oliva); margin: 1.4rem 0 .5rem; }
+  p{ margin: 0 0 .9rem; }
+  strong{ color: var(--oliva); }
+  code, .mono{ font-family: ui-monospace, "Cascadia Code", Consolas, monospace; background: #fff; border: 1px solid var(--linea); border-radius: 4px; padding: .1rem .4rem; font-size: .92em; color: var(--tinta); word-break: break-all; }
+  ol.steps{ margin: 0 0 1rem; padding: 0; list-style: none; counter-reset: step; }
+  ol.steps > li{ counter-increment: step; position: relative; margin: 0 0 .85rem; padding: 0 0 0 2.5rem; min-height: 1.7rem; }
+  ol.steps > li::before{ content: counter(step); position: absolute; left: 0; top: 0; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--oliva); color: #fff; font-weight:700; font-size:.85rem; display:flex; align-items:center; justify-content:center; }
+  ul.list{ margin:0 0 1rem; padding-left: 1.3rem; }
+  ul.list li{ margin-bottom:.4rem; }
+  table{ width:100%; border-collapse: collapse; margin: 0 0 1.2rem; font-size:.92rem; }
+  th, td{ text-align:left; padding:.55rem .6rem; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  th{ color: var(--oliva); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+  .box{ border-radius: 10px; padding: 1rem 1.2rem; margin: 0 0 1.2rem; break-inside: avoid; }
+  .tip{ background: #fff; border: 1px solid var(--linea); }
+  .tip .box-title{ color: var(--oliva); }
+  .warn{ background: #fff; border: 1px solid var(--linea); border-left: 4px solid var(--ambar); }
+  .warn .box-title{ color: var(--ambar); }
+  .box-title{ font-weight:800; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin: 0 0 .4rem; }
+  .box p:last-child{ margin-bottom:0; }
+  .msg{ display:block; font-family: ui-monospace, Consolas, monospace; font-size:.86rem; background:#fff; border:1px solid var(--linea); border-left: 3px solid var(--oliva-suave); border-radius:6px; padding:.5rem .7rem; margin:.35rem 0; }
+  .msg.err{ border-left-color: var(--ambar); }
+  .chips{ display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 1rem; }
+  .chip{ display:inline-block; padding:.28rem .7rem; border-radius:999px; font-size:.82rem; font-weight:600; background:#fff; border:1px solid var(--linea); }
+  footer{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--linea); font-size:.8rem; color: var(--oliva-suave); display:flex; justify-content:space-between; }
+  @media print{
+    body{ background:#fff; font-size: 12.5px; }
+    .page{ max-width:none; padding:0; margin:0; }
+    @page{ size:A4; margin: 16mm 15mm; }
+    h2{ break-after: avoid; }
+    .box, table, ol.steps > li{ break-inside: avoid; }
+    a{ color: inherit; text-decoration:none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="wordmark"><span class="bk">[</span>&nbsp;GOCAS&nbsp;<span class="bk">]</span><span class="sub">live</span></div>
+
+  <p class="kicker">Manual 1 de 5</p>
+  <h1>Primeros pasos</h1>
+  <p class="subtitle">Qué es GOCAS Live, cómo instalarlo en tu computador y un recorrido rápido por la interfaz antes de tu primera transmisión.</p>
+
+  <h2><span class="num">1.</span> Qué es GOCAS Live</h2>
+  <p>GOCAS Live es un programa que se instala en tu computador y hace una sola cosa muy bien: <strong>toma la señal de una cámara de vigilancia (una cámara RTSP) y la transmite en vivo a tu canal de YouTube</strong>, agregando encima el logo de tu negocio como marca de agua.</p>
+  <p>No necesitas equipos de transmisión especiales ni conocimientos de edición de video. Tú conectas la cámara, configuras la transmisión una vez, y desde ahí solo das clic en <strong>Transmitir</strong> cada vez que quieras salir en vivo.</p>
+
+  <div class="box tip">
+    <p class="box-title">Consejo</p>
+    <p>Este manual asume que ya tienes: una cámara de vigilancia conectada a una red (WiFi o cable) y un canal de YouTube. Si te falta alguna de las dos cosas, resuélvelo antes de instalar la app.</p>
+  </div>
+
+  <h2><span class="num">2.</span> Instalar la aplicación</h2>
+  <ol class="steps">
+    <li>Descarga el instalador de GOCAS Live (archivo con nombre parecido a <code>GOCAS-Live-Setup-1.0.0.exe</code>) desde el enlace que te compartió GOCAS.</li>
+    <li>Haz doble clic sobre el archivo descargado para empezar la instalación.</li>
+    <li>Es posible que Windows muestre una pantalla azul que dice <strong>"Windows protegió su equipo"</strong>. Esto es normal: aparece porque la aplicación es nueva y todavía no acumula muchas descargas ante Microsoft, no porque tenga algo malo. Para continuar, haz clic en <strong>"Más información"</strong> y luego en el botón <strong>"Ejecutar de todas formas"</strong> que aparece abajo.</li>
+    <li>El instalador te va a preguntar en qué carpeta quieres instalar GOCAS Live. Puedes dejar la carpeta que aparece por defecto o elegir otra con el botón para cambiarla.</li>
+    <li>Haz clic en <strong>Instalar</strong> y espera unos segundos a que termine la barra de progreso.</li>
+    <li>Al terminar, la aplicación se abre sola automáticamente. Ya quedó instalada; la próxima vez la abres desde su ícono en el escritorio o el menú de inicio.</li>
+  </ol>
+
+  <div class="box warn">
+    <p class="box-title">Atención</p>
+    <p>Si tu antivirus o el propio Windows bloquean la instalación por completo (no dejan ni la opción "Ejecutar de todas formas"), contacta a GOCAS antes de intentar desactivar el antivirus. No es necesario hacerlo.</p>
+  </div>
+
+  <h2><span class="num">3.</span> Tour por la interfaz</h2>
+  <p>Cuando abres GOCAS Live vas a ver arriba el nombre de la aplicación con el logo <strong>[ GOCAS ] live</strong>, y debajo una fila de cuatro pestañas. Así es cada una:</p>
+
+  <table>
+    <tr><th>Pestaña</th><th>Para qué sirve</th></tr>
+    <tr><td><strong>Transmisiones</strong></td><td>Aquí creas, editas, pruebas y sacas en vivo cada una de tus cámaras. Es la pestaña principal, la que se abre primero.</td></tr>
+    <tr><td><strong>Marcas de agua</strong></td><td>Aquí subes los logos que quieres usar como marca de agua sobre el video.</td></tr>
+    <tr><td><strong>Ayuda</strong></td><td>Un resumen rápido en pantalla de cómo salir en vivo y de qué hacer si la cámara no conecta.</td></tr>
+    <tr><td><strong>Manuales</strong></td><td>Los cinco manuales de GOCAS Live (este incluido), para leer en pantalla o abrir en PDF.</td></tr>
+  </table>
+
+  <p>Dentro de la pestaña Transmisiones, cada cámara que configures aparece como una tarjeta con su título, su estado (Detenido, Preview, EN VIVO, etc.) y los botones para controlarla: <strong>Probar cámara</strong>, <strong>Preview</strong>, <strong>Transmitir</strong>, <strong>Editar</strong> y <strong>Eliminar</strong>. Los manuales 3 y 4 explican cada uno en detalle.</p>
+
+  <div class="box warn">
+    <p class="box-title">Atención</p>
+    <p>Todas las transmisiones que salgan por GOCAS Live llevan siempre, de forma fija, el logo de GOCAS pequeño en la esquina inferior izquierda del video, con una opacidad del 75%. No se puede quitar ni mover. Es la marca del producto, igual a como otras plataformas de streaming ponen su propio sello. Tu marca de agua (la de tu negocio) se agrega además, en el lugar que tú elijas — el manual 2 te muestra cómo.</p>
+  </div>
+
+  <h2><span class="num">4.</span> Siguientes pasos</h2>
+  <p>Con la app instalada, sigue este orden para tu primera transmisión:</p>
+  <ol class="steps">
+    <li>Sube tu logo en la pestaña <strong>Marcas de agua</strong> (manual 2).</li>
+    <li>Crea una transmisión con la URL de tu cámara (manual 3).</li>
+    <li>Consigue la clave de YouTube y sal en vivo (manual 4).</li>
+    <li>Si el internet del lugar es lento, revisa el manual 5 antes del evento.</li>
+  </ol>
+
+  <footer>
+    <span>GOCAS Live — Manual 1 de 5</span>
+    <span>GOCAS Automations</span>
+  </footer>
+
+</div>
+</body>
+</html>

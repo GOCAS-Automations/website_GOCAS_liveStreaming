@@ -1,0 +1,7 @@
+{ "manuales": [
+  { "id":"primeros-pasos", "titulo":"Primeros pasos", "descripcion":"Instala la app y conoce la interfaz.", "html":"manual-01-primeros-pasos.html", "pdf":"manual-01-primeros-pasos.pdf" },
+  { "id":"marcas-de-agua", "titulo":"Marcas de agua", "descripcion":"Sube tu logo y configúralo en tus lives.", "html":"manual-02-marcas-de-agua.html", "pdf":"manual-02-marcas-de-agua.pdf" },
+  { "id":"conectar-camara", "titulo":"Conecta tu cámara (RTSP)", "descripcion":"Encuentra la URL RTSP y pruébala en la app.", "html":"manual-03-conectar-camara.html", "pdf":"manual-03-conectar-camara.pdf" },
+  { "id":"salir-en-vivo", "titulo":"Salir en vivo en YouTube", "descripcion":"Preview, clave de retransmisión y transmisión.", "html":"manual-04-salir-en-vivo.html", "pdf":"manual-04-salir-en-vivo.pdf" },
+  { "id":"internet-celular", "titulo":"Transmitir con el internet del celular", "descripcion":"Cámara por cable + hotspot del celular, paso a paso.", "html":"manual-05-internet-celular.html", "pdf":"manual-05-internet-celular.pdf" }
+] }

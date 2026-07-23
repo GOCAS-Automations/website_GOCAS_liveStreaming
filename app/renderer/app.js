@@ -13,6 +13,10 @@ const state = {
   probeCard: {},     // id -> resultado de "Probar cámara" mostrado en la tarjeta
   busyAction: {},    // id -> acción en curso (para deshabilitar botones y mostrar "…")
   hls: {},           // id -> instancia de Hls (reproductor de preview)
+  hlsRecover: {},    // id -> nº de ciclos de recuperación del player (tope ~5)
+  hlsTimer: {},      // id -> timer de recreación del player tras error fatal
+  previewFailed: {}, // id -> true cuando el player se rindió (mensaje + Reintentar)
+  manuales: null,    // caché del manifest de manuales (null = aún no cargado)
   confirmDelete: null, // id de live con confirmación de borrado abierta
   wmConfirmDelete: null, // id de marca con confirmación de borrado abierta
   wmRenaming: null,  // id de marca en modo renombrar
@@ -21,7 +25,7 @@ const state = {
   editingId: null,   // id del live que se está editando en el sheet (null = nuevo)
 };
 
-const TAB_INDEX = { lives: 0, wm: 1, help: 2 };
+const TAB_INDEX = { lives: 0, wm: 1, help: 2, manuales: 3 };
 
 // ── Utilidades ───────────────────────────────────────────────────────────────
 // Escapa texto para insertarlo como HTML sin riesgo de inyección.
@@ -126,6 +130,7 @@ function setTab(tab) {
 function renderActiveView() {
   if (state.activeTab === 'lives') renderLives();
   else if (state.activeTab === 'wm') renderWatermarks();
+  else if (state.activeTab === 'manuales') renderManuales();
   else renderHelp();
 }
 
@@ -139,6 +144,7 @@ function handleAction(action, id, target, e) {
     case 'preview': doPreview(id); break;
     case 'stream': transmit(id, 'stream'); break;
     case 'to-youtube': transmit(id, 'to-youtube'); break;
+    case 'preview-retry': retryPreview(id); break;
     case 'stop': stopLive(id); break;
     case 'delete-ask': state.confirmDelete = id; syncCardActions(id); break;
     case 'delete-no': state.confirmDelete = null; syncCardActions(id); break;
@@ -156,6 +162,9 @@ function handleAction(action, id, target, e) {
     case 'sheet-save': saveEditor(); break;
     case 'sheet-probe': editorProbe(); break;
     case 'sheet-backdrop': if (e.target.classList.contains('sheet-backdrop')) closeSheet(); break;
+    // Manuales
+    case 'manual-html': openManual(id, 'html'); break;
+    case 'manual-pdf': openManual(id, 'pdf'); break;
     default: break;
   }
 }
@@ -300,6 +309,15 @@ function timelineHtml(status) {
     ];
   }
 
+  // Invariante: en estado de error NUNCA pueden quedar los pasos todos en verde.
+  // Si el motor no marcó ningún paso como 'fail', se marca el primer paso que no
+  // esté en 'ok' (o el último si todos estaban en 'ok').
+  if (s === 'error' && !steps.some(([stt]) => stt === 'fail')) {
+    let idx = steps.findIndex(([stt]) => stt !== 'ok');
+    if (idx === -1) idx = steps.length - 1;
+    steps[idx][0] = 'fail';
+  }
+
   const dots = steps.map(([state_, label]) => {
     const mark = state_ === 'ok' ? '✓' : (state_ === 'fail' ? '✕' : '');
     return `<div class="tl-step ${state_}">
@@ -391,59 +409,139 @@ function ensurePreview(id, status) {
   const show = status.status === 'preview' && status.mode === 'preview';
 
   if (show) {
-    if (!box.querySelector('video')) {
-      box.innerHTML = `<div class="preview-inner">
-          <video id="video-${esc(id)}" class="preview-video" playsinline muted controls></video>
-          <div class="preview-cap">Así se verá tu live (marcas incluidas).</div>
-          <button class="btn amber" data-action="to-youtube" data-id="${esc(id)}">Todo se ve bien → Transmitir a YouTube</button>
-        </div>`;
-      attachHls(id);
-    }
-  } else if (box.querySelector('video')) {
+    // Si el player se rindió, deja el mensaje + "Reintentar" (no lo recrees solo).
+    if (state.previewFailed[id]) return;
+    if (!box.querySelector('video')) buildPreviewPlayer(id, box);
+  } else if (box.innerHTML.trim() !== '') {
     destroyHls(id);
     box.innerHTML = '';
+    state.previewFailed[id] = false;
+    state.hlsRecover[id] = 0;
   }
 }
 
-// Conecta hls.js (o el reproductor nativo) al <video> del preview.
+// Construye el HTML del player (con overlay de carga) y engancha hls.js.
+function buildPreviewPlayer(id, box) {
+  box.innerHTML = `<div class="preview-inner">
+      <div class="preview-stage">
+        <video id="video-${esc(id)}" class="preview-video" playsinline muted controls></video>
+        <div class="preview-overlay" id="overlay-${esc(id)}">
+          <div class="preview-spinner"></div>
+          <div class="preview-overlay-msg">Cargando preview… puede tardar unos segundos</div>
+        </div>
+      </div>
+      <div class="preview-cap">Así se verá tu live (marcas incluidas).</div>
+      <button class="btn amber" data-action="to-youtube" data-id="${esc(id)}">Todo se ve bien → Transmitir a YouTube</button>
+    </div>`;
+  attachHls(id);
+}
+
+// Reemplaza el player por un mensaje cuando la recuperación se agota.
+function showPreviewFailed(id) {
+  const card = cardEl(id);
+  if (!card) return;
+  destroyHls(id);
+  state.previewFailed[id] = true;
+  const box = card.querySelector('.js-preview');
+  box.innerHTML = `<div class="preview-inner">
+      <div class="preview-failed">
+        <p>No se pudo mostrar el preview en la app (la señal igual puede funcionar).</p>
+        <button class="btn ghost" data-action="preview-retry" data-id="${esc(id)}">Reintentar</button>
+      </div>
+    </div>`;
+}
+
+// Reintento manual desde el mensaje de fallo: resetea contadores y recrea player.
+function retryPreview(id) {
+  const card = cardEl(id);
+  if (!card) return;
+  state.previewFailed[id] = false;
+  state.hlsRecover[id] = 0;
+  buildPreviewPlayer(id, card.querySelector('.js-preview'));
+}
+
+// Oculta el overlay de carga cuando ya hay frames en pantalla.
+function hidePreviewOverlay(id) {
+  const ov = document.getElementById('overlay-' + id);
+  if (ov) ov.remove();
+}
+
+// Conecta hls.js (o el reproductor nativo) al <video> del preview, con manejo
+// resiliente de errores fatales y tope de ciclos de recuperación.
 function attachHls(id) {
   const video = document.getElementById('video-' + id);
   if (!video) return;
   const url = `http://127.0.0.1:${state.info.port}/hls/${id}/index.m3u8`;
   destroyHls(id);
+  video.muted = true;
 
   if (window.Hls && window.Hls.isSupported()) {
     const hls = new window.Hls({
+      lowLatencyMode: false,
+      backBufferLength: 30,
       liveSyncDurationCount: 3,
-      manifestLoadingMaxRetry: 12,
+      manifestLoadingMaxRetry: 20,
       manifestLoadingRetryDelay: 1000,
+      fragLoadingMaxRetry: 10,
     });
     hls.loadSource(url);
     hls.attachMedia(video);
-    hls.on(window.Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
+
+    hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+      video.muted = true;
+      video.play().catch(() => {});
+    });
+
+    // Frames en buffer: hay imagen → quita el overlay y reinicia el contador de
+    // recuperación (una sesión larga con hipos ocasionales nunca debe agotarlo).
+    hls.on(window.Hls.Events.FRAG_BUFFERED, () => {
+      state.hlsRecover[id] = 0;
+      hidePreviewOverlay(id);
+    });
+
     hls.on(window.Hls.Events.ERROR, (evt, data) => {
-      // Errores fatales: intenta recuperarse (el preview HLS aún puede estar generándose).
-      if (data && data.fatal) {
-        try {
-          if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-          else hls.startLoad();
-        } catch (e) { /* ignora */ }
+      if (!data || !data.fatal) return;
+      const n = (state.hlsRecover[id] || 0) + 1;
+      state.hlsRecover[id] = n;
+      if (n > 5) { showPreviewFailed(id); return; } // ~5 ciclos y se rinde
+
+      if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+        try { hls.startLoad(); } catch (e) { /* ignora */ }
+      } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+        try { hls.recoverMediaError(); } catch (e) { /* ignora */ }
+      } else {
+        // Otro error fatal: destruir y recrear la instancia tras 2s.
+        destroyHls(id);
+        state.hlsTimer[id] = setTimeout(() => {
+          delete state.hlsTimer[id];
+          if (state.previewFailed[id]) return;
+          if (document.getElementById('video-' + id)) attachHls(id);
+        }, 2000);
       }
     });
+
     state.hls[id] = hls;
+    video.addEventListener('playing', () => hidePreviewOverlay(id));
+    video.play().catch(() => {});
   } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
     // Fallback nativo (Safari/WebKit).
     video.src = url;
+    video.muted = true;
     video.addEventListener('loadedmetadata', () => { video.play().catch(() => {}); });
+    video.addEventListener('playing', () => hidePreviewOverlay(id));
   }
 }
 
-// Destruye la instancia de hls.js de un id (si existe).
+// Destruye la instancia de hls.js de un id (si existe) y cancela su timer.
 function destroyHls(id) {
   const h = state.hls[id];
   if (h) {
     try { h.destroy(); } catch (e) { /* ignora */ }
     delete state.hls[id];
+  }
+  if (state.hlsTimer[id]) {
+    clearTimeout(state.hlsTimer[id]);
+    delete state.hlsTimer[id];
   }
 }
 
@@ -1000,6 +1098,65 @@ function renderHelp() {
         </ul>
       </div>
     </div>`;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  PESTAÑA: MANUALES
+// ═════════════════════════════════════════════════════════════════════════════
+
+function renderManuales() {
+  const view = document.getElementById('view');
+  view.innerHTML = `<div class="section-top"><h2 class="section-h">Manuales</h2></div>
+    <div id="manuales-list" class="manuales-list">
+      <div class="statusmsg muted">Cargando manuales…</div>
+    </div>`;
+  loadManuales();
+}
+
+// Carga el manifest (con caché) y pinta las tarjetas. Tolera cambios de pestaña.
+async function loadManuales() {
+  if (state.manuales == null) {
+    try {
+      const r = await gocas.manualsList();
+      state.manuales = Array.isArray(r) ? r : [];
+    } catch (e) {
+      state.manuales = [];
+    }
+  }
+  const list = document.getElementById('manuales-list');
+  if (!list) return; // el usuario cambió de pestaña mientras cargaba
+  if (!state.manuales.length) {
+    list.innerHTML = `<div class="empty"><p>Los manuales se incluirán en la próxima versión.</p></div>`;
+    return;
+  }
+  list.innerHTML = state.manuales.map(buildManualCard).join('');
+}
+
+function buildManualCard(m) {
+  return `<div class="card manual-card">
+      <div class="manual-info">
+        <h3 class="manual-title">${esc(m.titulo || 'Manual')}</h3>
+        <p class="manual-desc">${esc(m.descripcion || '')}</p>
+      </div>
+      <div class="manual-actions">
+        <button class="btn olive sm" data-action="manual-html" data-id="${esc(m.id)}">Leer</button>
+        <button class="btn ghost sm" data-action="manual-pdf" data-id="${esc(m.id)}">PDF</button>
+      </div>
+    </div>`;
+}
+
+// Abre un manual (html en ventana propia · pdf con la app del sistema).
+async function openManual(id, type) {
+  const m = (state.manuales || []).find((x) => x.id === id);
+  if (!m) { toast('error', 'Manual no encontrado.'); return; }
+  const file = type === 'pdf' ? m.pdf : m.html;
+  if (!file) { toast('warn', 'Ese formato no está disponible.'); return; }
+  try {
+    const r = await gocas.manualsOpen(file, type);
+    if (r && r.error) toast('warn', r.error);
+  } catch (e) {
+    toast('error', 'No se pudo abrir el manual: ' + e.message);
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
